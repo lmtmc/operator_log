@@ -8,6 +8,8 @@ import datetime
 import re
 from layout import time_log, observation_cancel, instrument_status
 import functions
+import urllib.parse
+
 # Username and password for the app
 VALID_USERNAME_PASSWORD_PAIRS = {
     'admin': 'admin'
@@ -31,7 +33,10 @@ app.layout = dbc.Container([
 
     dbc.Row(dbc.Alert(id='validation-message', color='primary', dismissable=True,is_open=False), className='mb-5'),
     dbc.Row(dbc.Col(dbc.Button('Submit', id='submit-button', color='primary'), width='auto'), justify='end'),
-    dbc.Row(dbc.Col(dbc.Button('Log', id='history-button', color='secondary', )), className='mb-5'),
+    html.Hr(),
+    dbc.Row([dbc.Col(dbc.Button('Log Display', id='history-button', color='secondary', ), width='auto'),
+             dbc.Col(dbc.Button('Download', id='download-button',color='secondary'))], className='mb-5'),
+    dcc.Download(id='download-dataframe-csv'),
     dbc.Row(dbc.Col(html.Div(id='table-container')),className='mb-5'),
 
 ], id='page-content', className='mt-5')
@@ -187,6 +192,33 @@ def show_history(n_clicks):
         print(e)
         return html.Div(f'An error occurred while fetching data: {e}')
 
+# if download button is clicked, download the data as csv
+@app.callback(
+    Output('download-dataframe-csv', 'data'),
+    Input('download-button', 'n_clicks'),
+    prevent_initial_call=True
+)
+def download_data(n_clicks):
+    if not n_clicks:
+        raise PreventUpdate
 
+    try:
+        with db_connection() as conn:
+            # Check if the table exists
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='operation_log';")
+            if not cursor.fetchone():  # If the table does not exist
+                return PreventUpdate
+
+            # If the table exists, fetch data and create the table
+            df = pd.read_sql('SELECT * FROM operation_log', conn)
+            df['date'] = pd.to_datetime(df['date']).dt.strftime('%Y-%m-%d')
+            # csv_string = df.to_csv(index=False, encoding='utf-8')
+            # csv_string = "data:text/csv;charset=utf-8," + urllib.parse.quote(csv_string)
+            return dcc.send_data_frame(df.to_csv, "operation_log.csv", index=False)
+
+    except Exception as e:
+        print(e)
+        return PreventUpdate
 if __name__ == '__main__':
     app.run_server(debug=True)
