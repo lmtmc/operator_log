@@ -11,17 +11,16 @@ To set up your environment and install the required dependencies, follow these s
 ```
 python3 -m venv env
 ```
-#### Install Dependencies:
-
-```angular2html
-pip3 install -r requirements.txt
-```
 #### Activate the Virtual Environment:
 
 ```angular2html
 source env/bin/activate
 ```
+#### Install Dependencies:
 
+```angular2html
+pip3 install -r requirements.txt
+```
 ## Start the Application:
 
 ```angular2html
