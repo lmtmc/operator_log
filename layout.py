@@ -15,7 +15,7 @@ def create_dropdown(id_prefix, label, options):
     return dbc.Row([
         dbc.Col(html.Label([
             html.Span("*", style=red_star_style),  # Red star
-            f"{label} Hour"  # Label text
+            f"{id_prefix} {label}"  # Label text
         ]), width='auto'),
         dbc.Col(dcc.Dropdown(id=f'{id_prefix}-{label.lower()}-dropdown', options=options), width=5),
     ], justify='center', align='center', className='mb-3')
