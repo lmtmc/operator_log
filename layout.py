@@ -17,7 +17,7 @@ def create_dropdown(id_prefix, label, options):
             html.Span("*", style=red_star_style),  # Red star
 
             # f"{label}"  # Label text
-         f"{id_prefix} {label}"  # Label text
+         f"{id_prefix.capitalize()} {label}"  # Label text
 
         ]), width='auto'),
         dbc.Col(dcc.Dropdown(id=f'{id_prefix}-{label.lower()}-dropdown', options=options),),
