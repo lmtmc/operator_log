@@ -15,7 +15,10 @@ def create_dropdown(id_prefix, label, options):
     return dbc.Row([
         dbc.Col(html.Label([
             html.Span("*", style=red_star_style),  # Red star
-            f"{label}"  # Label text
+
+            # f"{label}"  # Label text
+         f"{id_prefix} {label}"  # Label text
+
         ]), width='auto'),
         dbc.Col(dcc.Dropdown(id=f'{id_prefix}-{label.lower()}-dropdown', options=options),),
     ], justify='center', align='center', className='mb-3')
@@ -28,12 +31,12 @@ def create_time_selector(id_prefix):
     minute_dropdown = create_dropdown(id_prefix, "Minute", minutes)
 
     return html.Div([
-                     dbc.Row(dbc.Col(dbc.Label(id_prefix.capitalize(), style={'font-weight':'bold'}),
-                                     width={'size':'auto', 'offset': 1})),
+                     # dbc.Row(dbc.Col(dbc.Label(id_prefix.capitalize(), style={'font-weight':'bold'}),
+                     #                 width={'size':'auto', 'offset': 1})),
                      dbc.Row([
                          # dbc.Col(dbc.Label(id_prefix.capitalize()), width='auto'),
-                         dbc.Col(hour_dropdown, ),
-                         dbc.Col(minute_dropdown, )
+                         dbc.Col(hour_dropdown, width=5),
+                         dbc.Col(minute_dropdown, width=5)
                      ], justify='start', align='bottom', className='g-0 mb-3')])
 
 #Navbar
