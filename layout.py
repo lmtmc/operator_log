@@ -15,9 +15,9 @@ def create_dropdown(id_prefix, label, options):
     return dbc.Row([
         dbc.Col(html.Label([
             html.Span("*", style=red_star_style),  # Red star
-            f"{label} Hour"  # Label text
+            f"{label}"  # Label text
         ]), width='auto'),
-        dbc.Col(dcc.Dropdown(id=f'{id_prefix}-{label.lower()}-dropdown', options=options), width=5),
+        dbc.Col(dcc.Dropdown(id=f'{id_prefix}-{label.lower()}-dropdown', options=options),),
     ], justify='center', align='center', className='mb-3')
 
 def create_time_selector(id_prefix):
@@ -27,7 +27,59 @@ def create_time_selector(id_prefix):
     hour_dropdown = create_dropdown(id_prefix, "Hour", hours)
     minute_dropdown = create_dropdown(id_prefix, "Minute", minutes)
 
-    return html.Div([dbc.Row([dbc.Col(hour_dropdown), dbc.Col(minute_dropdown)])])
+    return html.Div([
+                     dbc.Row(dbc.Col(dbc.Label(id_prefix.capitalize(), style={'font-weight':'bold'}),
+                                     width={'size':'auto', 'offset': 1})),
+                     dbc.Row([
+                         # dbc.Col(dbc.Label(id_prefix.capitalize()), width='auto'),
+                         dbc.Col(hour_dropdown, ),
+                         dbc.Col(minute_dropdown, )
+                     ], justify='start', align='bottom', className='g-0 mb-3')])
+
+#Navbar
+
+navbar = dbc.Navbar(
+    dbc.Container(
+        [
+            dbc.NavbarBrand("Telescope Operation Log", className="ml-3"),  # Space at the beginning
+            dbc.NavbarToggler(id="navbar-toggler"),
+            dbc.Collapse(
+                dbc.Row(
+                    [
+                        dbc.Col(dbc.NavLink("Operator: admin",style={'color': 'white'}), width='auto'),
+                        dbc.Col(
+                            dbc.DropdownMenu(
+                                label='Log',
+                                nav=True,
+                                in_navbar=True,
+                                children=[
+                                    dbc.DropdownMenuItem("Log History", id='history-button'),
+                                    dbc.DropdownMenuItem("Download Log", id='download-button'),
+                                ],
+                                right=True,
+                                style={'color': 'white'},  # Style for the dropdown menu
+                            ),
+                            width="auto",
+                            className="mr-3"  # Space at the end of the navbar items
+                        )
+                    ],
+                    className='mt-3 mt-md-0 flex-nowrap ms-auto',  # Alignment classes
+                    align='center',
+                    justify='end'
+                ),
+                id="navbar-collapse",
+                navbar=True,
+                is_open=True
+            )
+        ],
+        fluid=True  # Set to True for a full-width container, False for a fixed-width container
+    ),
+    color="secondary",
+    dark=True,
+    className='mb-5 mt-5 ml-5 mr-5'  # Overall navbar padding
+)
+
+
 
 # Define the layout for time log
 time_log = html.Div([
@@ -73,3 +125,18 @@ instrument_status = html.Div([
             )
         ])
     ], className='mb-5')
+
+table_modal = dbc.Modal(
+    [
+        dbc.ModalHeader(dbc.ModalTitle("Log History")),
+        dbc.ModalBody(
+            html.Div(id='modal-body-content')  # Container for DataTable
+        ),
+        dbc.ModalFooter(
+            dbc.Button("Close", id="close-modal", className="ml-auto")
+        ),
+    ],
+    id="table-container",
+    is_open=False,  # By default, the modal is not open
+    size="xl",  # Optional: specify the size of the modal (e.g., "sm", "lg", "xl")
+)

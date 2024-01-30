@@ -1,18 +1,19 @@
 import dash
 import dash_auth
-from dash import html, dcc, Input, Output, State
+from dash import html, dcc, Input, Output, State, no_update, ctx
 import dash_bootstrap_components as dbc
 import sqlite3
 import pandas as pd
 import datetime
 import re
-from layout import time_log, observation_cancel, instrument_status
+from layout import navbar,time_log, observation_cancel, instrument_status, table_modal
 import functions
 import urllib.parse
 
 # Username and password for the app
 VALID_USERNAME_PASSWORD_PAIRS = {
-    'admin': 'admin'
+    'admin': 'admin',
+    'test': 'test'
 }
 
 # Initialize the Dash app
@@ -26,18 +27,29 @@ auth = dash_auth.BasicAuth(
 
 # Layout of the app
 app.layout = dbc.Container([
-    dbc.Row(html.H1("Telescope Operation Log", style={'textAlign':'center'}), justify='center', align="center", className='mb-5 mt-5'),
+
+    navbar,
     time_log,
     observation_cancel,
     instrument_status,
-
+    table_modal,
     dbc.Row(dbc.Alert(id='validation-message', color='primary', dismissable=True,is_open=False), className='mb-5'),
-    dbc.Row(dbc.Col(dbc.Button('Submit', id='submit-button', color='primary'), width='auto'), justify='end'),
-    html.Hr(),
-    dbc.Row([dbc.Col(dbc.Button('Log Display', id='history-button', color='secondary', ), width='auto'),
-             dbc.Col(dbc.Button('Download', id='download-button',color='secondary'))], className='mb-5'),
+    dbc.Row(dbc.Col(dbc.Button('Submit', id='submit-button',  color='secondary',
+                               style={
+               "font-size": "20px",
+               "font-weight": "bold",
+               "color": "white",
+               # "background-color": "#007bff",
+               "border-color": "#007bff",
+               "padding": "10px 20px",
+               "border-radius": "5px",
+               "cursor": "pointer",
+               "box-shadow": "0 2px 4px rgba(0, 123, 255, 0.5)",
+               "transition": "background-color 0.2s, box-shadow 0.2s"
+           }), width='auto'), justify='end'),
+
     dcc.Download(id='download-dataframe-csv'),
-    dbc.Row(dbc.Col(html.Div(id='table-container')),className='mb-5'),
+
 
 ], id='page-content', className='mt-5')
 
@@ -45,6 +57,17 @@ app.layout = dbc.Container([
 def db_connection():
     conn = sqlite3.connect('record.db')
     return conn
+
+# add callback for toggling the collapse on small screens
+@app.callback(
+    Output("navbar-collapse", "is_open"),
+    [Input("navbar-toggler", "n_clicks")],
+    [State("navbar-collapse", "is_open")],
+)
+def toggle_navbar_collapse(n, is_open):
+    if n:
+        return not is_open
+    return is_open
 
 # Callback to update shutdown hour and minute dropdown based on arrival time
 @app.callback(
@@ -169,28 +192,36 @@ def validate_input(n_clicks, date, arrival_hour, arrival_minute, shutdown_hour, 
 
 # if history button is clicked, show the history table
 @app.callback(
-    Output('table-container', 'children'),
+    Output('table-container', 'is_open'),
+    Output("modal-body-content", 'children'),
     Input('history-button', 'n_clicks'),
+    Input('close-modal', 'n_clicks'),
+    State('table-container', 'is_open'),
+    prevent_initial_call=True
 )
-def show_history(n_clicks):
-    if not n_clicks:
-        return ''
+def show_history(n1, n2, is_open):
+    if not ctx.triggered:
+        return no_update, no_update
+    button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    if button_id == 'history-button':
+        try:
+            with db_connection() as conn:
+                # Check if the table exists
+                cursor = conn.cursor()
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='operation_log';")
+                if not cursor.fetchone():  # If the table does not exist
+                    return html.Div('No history data available.')
 
-    try:
-        with db_connection() as conn:
-            # Check if the table exists
-            cursor = conn.cursor()
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='operation_log';")
-            if not cursor.fetchone():  # If the table does not exist
-                return html.Div('No history data available.')
+                # If the table exists, fetch data and create the table
+                df = pd.read_sql('SELECT * FROM operation_log', conn)
+                return not is_open, dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True)
 
-            # If the table exists, fetch data and create the table
-            df = pd.read_sql('SELECT * FROM operation_log', conn)
-            return dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True)
-
-    except Exception as e:
-        print(e)
-        return html.Div(f'An error occurred while fetching data: {e}')
+        except Exception as e:
+            print(e)
+            return is_open, no_update
+    elif button_id == 'close-modal':
+        return not is_open, no_update
+    return no_update, no_update
 
 # if download button is clicked, download the data as csv
 @app.callback(
