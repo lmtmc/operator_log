@@ -7,9 +7,10 @@ lost_reason = ['Bad Weather', 'Scheduled observer team not available',
                'Problem with the telescope (e.g. drive system, active surface, M2, M3, etc.)',
                'Site problem (e.g. power, ice on dish, etc.)', 'Other']
 
-instruments = ['TolTEC', 'SEQUOIA']
+instruments = ['TolTEC', 'SEQUOIA', 'RSR', '1mm Rx']
 
 red_star_style = {"color": "red", 'margin-right': '5px'}
+
 # create a list of hours and minutes for the dropdown
 def create_dropdown(id_prefix, label, options):
     return dbc.Row([
@@ -83,6 +84,35 @@ navbar = dbc.Navbar(
 )
 
 
+form_choice = html.Div(
+    [
+        dbc.Row(
+            [
+                dbc.Col(
+                    dbc.RadioItems(id='form-choice',
+                                   options=[{'label': 'Create New', 'value': 'new'},
+                                            {'label': 'Edit Existing', 'value': 'edit'}],
+                inline=True,
+                value='new',
+                labelStyle={'display': 'block', 'margin-right': '20px'},
+                style={'margin-bottom': '20px'}  # Style for the RadioItems
+            ),width=8),
+                dbc.Col(
+                    dbc.Button(html.Span(['Next ', html.Span('\u27A1', style={'font-size': '18px'})]),  # Unicode arrow
+                               color='secondary',
+                               id='next-button',
+                               n_clicks=0),
+                    width=4,  # Adjust the width as needed
+                    style={'textAlign': 'right'}  # Align the button to the right
+                )],
+            justify='between', )],
+    style={'background-color': '#f8f9fa',  # Light grey background
+           'border': '1px solid #dee2e6',   # Border color
+           'border-radius': '5px',          # Rounded corners
+           'padding': '20px',               # Padding inside the div
+           'box-shadow': '2px 2px 2px lightgrey',  # Shadow effect
+           'margin-bottom': '20px'}   ,      # Margin at the bottom
+id='form-choice-container')
 
 # Define the layout for time log
 time_log = html.Div([
@@ -93,7 +123,7 @@ time_log = html.Div([
             dbc.Row([
                 dbc.Col(create_time_selector('arrival'), className='text-center'),
                 dbc.Col(create_time_selector('shutdown'), className='text-center'),
-            ], justify='center',align='end' )
+            ], justify='center',align='end' ),
 
         ])
     ])
@@ -102,7 +132,7 @@ time_log = html.Div([
 # Observation cancellation or lost layout
 observation_cancel = html.Div([
     dbc.Card([
-        dbc.CardHeader(dbc.Checklist(options=['Observation Cancellation or Lost'], id='check-lost'), ),
+        dbc.CardHeader(dbc.Label('Observation Cancellation or Lost', id='check-lost'), ),
         dbc.CardBody([
             dbc.Row([
                 dbc.Col(create_time_selector('lost-start'), className='text-center'),
@@ -113,16 +143,18 @@ observation_cancel = html.Div([
             className='mb-5'),
             html.Div([html.Span("*", style=red_star_style),'Other Reason',
                 dbc.Textarea(id='other-reason')], id='note-display',style={'display': 'none'}),
-        ], style={'display': 'none'}, id='observation-cancel-body')
+        ], id='observation-cancel-body')
     ])
 ], className='mb-5' )
 
 instrument_status = html.Div([
         dbc.Card([
-            dbc.CardHeader("Facility Instruments Status"),
+            dbc.CardHeader("Facility Instruments Ready"),
             dbc.CardBody([
                 dbc.Checklist(id='instrument-status',
-                options = [{"label": instrument, 'value': instrument} for instrument in instruments], switch=True),
+                options = [{"label": instrument, 'value': instrument} for instrument in instruments], switch=True
+                              , inline=True,),
+
             ]
 
             )
@@ -143,3 +175,13 @@ table_modal = dbc.Modal(
     is_open=False,  # By default, the modal is not open
     size="xl",  # Optional: specify the size of the modal (e.g., "sm", "lg", "xl")
 )
+
+form_input = html.Div(id='form-container',children=[
+    time_log,
+    observation_cancel,
+    instrument_status,
+    dbc.Row([
+        dbc.Col(dbc.Button('Save', id='save-button', color='secondary', ), width='auto'),
+        dbc.Col(dbc.Button('Submit', id='submit-button',  color='secondary',), width='auto')
+    ],justify='end'),],style={'display': 'none'},
+    )
