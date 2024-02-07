@@ -1,23 +1,22 @@
 import dash
 import dash_auth
-from dash import html, dcc, Input, Output, State, no_update, ctx
+from dash import html, dcc, Input, Output, State, no_update, ctx, Patch, ALL, no_update
 import dash_bootstrap_components as dbc
 import sqlite3
 import pandas as pd
 import datetime
-import re
 from layout import navbar,form_choice, form_input, table_modal
-import functions
-import urllib.parse
-from dash import no_update
+
 # Username and password for the app
 VALID_USERNAME_PASSWORD_PAIRS = {
     'admin': 'admin',
     'test': 'test'
 }
-
+lost_reason = ['Bad Weather', 'Scheduled observer team not available',
+               'Problem with the telescope (e.g. drive system, active surface, M2, M3, etc.)',
+               'Site problem (e.g. power, ice on dish, etc.)', 'Other']
 # Initialize the Dash app
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, 'assets/style.css'])
 
 # Authentication for the app
 auth = dash_auth.BasicAuth(
@@ -25,11 +24,12 @@ auth = dash_auth.BasicAuth(
     VALID_USERNAME_PASSWORD_PAIRS
 )
 
+
+
 # Layout of the app
 app.layout = dbc.Container([
 
     navbar,
-    form_input,
     form_choice,
     form_input,
     table_modal,
@@ -40,26 +40,171 @@ app.layout = dbc.Container([
 
 
 ], id='page-content', className='mt-5')
+instruments = ['TolTEC', 'SEQUOIA', 'RSR', '1mm Rx']
 
 form_data_output = [
     Output('date-picker', 'date', allow_duplicate=True),
-    Output('arrival-hour-dropdown', 'value',allow_duplicate=True),
-    Output('arrival-minute-dropdown', 'value',allow_duplicate=True),
-    Output('shutdown-hour-dropdown', 'value',allow_duplicate=True),
-    Output('shutdown-minute-dropdown', 'value',allow_duplicate=True),
-    Output('lost-start-hour-dropdown', 'value',allow_duplicate=True),
-    Output('lost-start-minute-dropdown', 'value',allow_duplicate=True),
-    Output('lost-end-hour-dropdown', 'value',allow_duplicate=True),
-    Output('lost-end-minute-dropdown', 'value',allow_duplicate=True),
-    Output('reason-input', 'value',allow_duplicate=True),
-    Output('other-reason', 'value',allow_duplicate=True),
-    Output('instrument-status', 'value',allow_duplicate=True),
+    Output('arrival-time', 'value',allow_duplicate=True),
+    Output('shutdown-time', 'value',allow_duplicate=True),
+    Output(instruments[0], 'value',allow_duplicate=True),
+    Output(instruments[1], 'value',allow_duplicate=True),
+    Output(instruments[2], 'value',allow_duplicate=True),
+    Output(instruments[3], 'value',allow_duplicate=True),
+    Output('list-container-div', 'children',allow_duplicate=True),
 ]
+
+clear_form = [datetime.datetime.today().date(),'','',False,False,False,False,'']
 # Database connection
 def db_connection():
     conn = sqlite3.connect('record.db')
     return conn
 
+# if next button is clicked, show the form input, hide the form choice
+@app.callback(
+    [
+        Output('form-container', 'style', allow_duplicate=True),
+        Output('form-choice-container', 'style'),
+        *form_data_output
+    ],
+    [
+        Input('next-button', 'n_clicks')
+    ],
+    [
+        State('saved-data', 'data'),
+        State('form-choice', 'value')
+    ],
+    prevent_initial_call=True
+)
+def show_form(n_clicks, saved_data, choice):
+    if n_clicks is None or n_clicks == 0:
+        raise PreventUpdate
+
+    if choice == 'new':
+        return [{'display': 'block'}, {'display': 'none'}] + clear_form
+    elif choice == 'edit':
+        if saved_data:
+            data_values = list(saved_data.values())
+            return {'display': 'block'},  {'display': 'none'}, *data_values
+        else:
+
+            return {'display': 'none'}, {'display': 'none'},no_update,no_update,no_update,no_update,no_update
+    return PreventUpdate
+
+# if lost start time, lost end time, or reason input are filled, then the add cancellation button is enabled
+@app.callback(
+    Output('add-button', 'disabled'),
+    Input('lost-start-time', 'value'),
+    Input('lost-end-time', 'value'),
+    Input('reason-input', 'value'),
+    prevent_initial_call=True
+)
+def enable_add_button(lost_start, lost_end, reason):
+    if reason:
+        reason = reason[0] if len(reason) == 1 else reason
+    if lost_start and lost_end and reason:
+        return False
+    return True
+
+# if the items in the list-container-div is selected remove button is enabled
+@app.callback(
+    Output('remove-button', 'disabled'),
+    Input({'type': 'done', 'index': ALL}, 'value'),
+    prevent_initial_call=True
+)
+def enable_remove_button(values):
+
+    value = [val for val in values if val]
+    if value:
+        return False
+    return True
+
+# If add button is clicked, add the new item to the list
+@app.callback(
+    Output('list-container-div', 'children', allow_duplicate=True),
+    Output('list-container-div', 'style', allow_duplicate=True),
+    Output('lost-start-time', 'value', allow_duplicate=True),
+    Output('lost-end-time', 'value', allow_duplicate=True),
+    Output('reason-input', 'value', allow_duplicate=True),
+    Input('add-button', 'n_clicks'),
+    State('lost-start-time', 'value'),
+    State('lost-end-time', 'value'),
+    State('reason-input', 'value'),
+    State('other-reason', 'value'),
+    prevent_initial_call=True,
+)
+def add_item(n_clicks, start_time, end_time, reason, other_reason):
+    if n_clicks is None or n_clicks == 0:
+        raise PreventUpdate
+    # concatenate the reasons
+    patched_list = Patch()
+    if reason and 'Other' in reason:
+        if other_reason:
+            reason = [other_reason if item=='Other' else item for item in reason]
+    reason = ', '.join(item for item in reason if item is not None)
+    new_item = html.Div(
+        [
+            dcc.Checklist(
+                options=[{'label': "", "value":"done"}],
+                id={"index": n_clicks, "type": "done"},
+                style={"display":"inline"},
+                labelStyle={"display":"inline"},
+            ),
+            html.Div(
+                [f'Cancel from {start_time} to {end_time} due to {reason}'],
+                id={"index": n_clicks, "type": "output-str"},
+                style={"display":"inline", "margin":"10px"},
+            )
+        ]
+    )
+    # append the new item to the list
+    patched_list.append(new_item)
+    return patched_list, {'display':'block'}, '', '', ''
+
+# callback to remove the selected item from the list
+@app.callback(
+    Output('list-container-div', 'children', allow_duplicate=True),
+    Input('remove-button', 'n_clicks'),
+    State({'index':ALL, 'type':"done"},"value"),
+    prevent_initial_call=True,
+)
+def remove_item(n_clicks, values,):
+    patched_list = Patch()
+    values_to_remove = []
+    for i, val in enumerate(values):
+        if val:
+            values_to_remove.insert(0,i)
+        for v in values_to_remove:
+            del patched_list[v]
+    return patched_list
+
+
+# if save button is clicked, save log date, arrival time, shutdown time, instruments, cancellation  to dcc.store
+
+
+@app.callback(
+    Output('saved-data', 'data'),
+    Input('save-button', 'n_clicks'),
+    State('date-picker', 'date'),
+    State('arrival-time', 'value'),
+    State('shutdown-time', 'value'),
+    State('TolTEC', 'value'),
+    State('SEQUOIA', 'value'),
+    State('RSR', 'value'),
+    State('1mm Rx', 'value'),
+    State('list-container-div', 'children'),
+    prevent_initial_call=True
+)
+def save_data(n_clicks, date, arrival_time, shutdown_time, instrument0,instrument1, instrument2, instrument3, children):
+     if n_clicks is None or n_clicks == 0:
+          raise PreventUpdate
+     if ctx.triggered[0]['prop_id'].split('.')[0] == 'save-button':
+          return {'date-picker': date, 'arrival-time': arrival_time, 'shutdown-time': shutdown_time,
+                  instruments[0]: instrument0, instruments[1]: instrument1, instruments[2]: instrument2,
+                  instruments[3]: instrument3, 'cancel-info': children}
+     return no_update
+
+
+#
 # add callback for toggling the collapse on small screens
 @app.callback(
     Output("navbar-collapse", "is_open"),
@@ -69,88 +214,6 @@ def db_connection():
 def toggle_navbar_collapse(n, is_open):
     return not is_open if n else is_open
 
-# if next button is clicked, show the form input
-@app.callback(
-    [
-        Output('form-container', 'style', allow_duplicate=True),
-        Output('form-choice-container', 'style'),
-        *form_data_output
-    ],
-    Input('next-button', 'n_clicks'),
-    Input('saved-data', 'data'),
-    State('form-choice', 'value'),
-    prevent_initial_call=True
-)
-def show_form(n_clicks, saved_data, choice):
-    if n_clicks is None or n_clicks == 0:
-        return no_update
-
-    if choice == 'new':
-
-        return {'display': 'block'}, {'display': 'none'}, datetime.datetime.today().date(),None,None,None,None,None,None,None,None,[None],None,[None]
-    elif choice == 'edit':
-        print('retrieve data',saved_data)
-        if saved_data:
-
-            return {'display': 'block'},  {'display': 'none'},saved_data['date'],saved_data['arrival_hour'],saved_data['arrival_minute'],saved_data['shutdown_hour'],saved_data['shutdown_minute'],saved_data['lost_start_hour'],saved_data['lost_start_minute'],saved_data['lost_end_hour'],saved_data['lost_end_minute'],saved_data['reason'],saved_data['other_reason'],saved_data['instrument']
-        else:
-            return {'display': 'none'}, {'display': 'none'},no_update,no_update,no_update,no_update,no_update,no_update,no_update,no_update,no_update,no_update,no_update,no_update
-    return no_update
-
-# if save button is clicked, save the data to dcc.store
-@app.callback(
-    Output('saved-data', 'data'),
-    Input('save-button', 'n_clicks'),
-    State('date-picker', 'date'),
-    State('arrival-hour-dropdown', 'value'),
-    State('arrival-minute-dropdown', 'value'),
-    State('shutdown-hour-dropdown', 'value'),
-    State('shutdown-minute-dropdown', 'value'),
-    State('lost-start-hour-dropdown', 'value'),
-    State('lost-start-minute-dropdown', 'value'),
-    State('lost-end-hour-dropdown', 'value'),
-    State('lost-end-minute-dropdown', 'value'),
-    State('reason-input', 'value'),
-    State('other-reason', 'value'),
-    State('instrument-status', 'value'),
-    prevent_initial_call=True
-)
-def save_data(n_clicks, date, arrival_hour, arrival_minute, shutdown_hour, shutdown_minute, lost_start_hour,
-                lost_start_minute, lost_end_hour, lost_end_minute, reason, other_reason, instrument):
-        if not n_clicks:
-            return no_update
-
-        if ctx.triggered[0]['prop_id'].split('.')[0] == 'save-button':
-            print(date, arrival_hour, arrival_minute, shutdown_hour, shutdown_minute, lost_start_hour,
-                           lost_start_minute, lost_end_hour, lost_end_minute, reason, other_reason, instrument)
-            return {'date': date, 'arrival_hour': arrival_hour, 'arrival_minute': arrival_minute,
-                'shutdown_hour': shutdown_hour, 'shutdown_minute': shutdown_minute,
-                'lost_start_hour': lost_start_hour, 'lost_start_minute': lost_start_minute,
-                'lost_end_hour': lost_end_hour, 'lost_end_minute': lost_end_minute,
-                'reason': reason, 'other_reason': other_reason, 'instrument': instrument}
-        return no_update
-
-# Callback to update shutdown hour and minute dropdown based on arrival time
-@app.callback(
-    Output('shutdown-hour-dropdown', 'options'),
-    Output('shutdown-minute-dropdown', 'options'),
-    Input('arrival-hour-dropdown', 'value'),
-    Input('arrival-minute-dropdown', 'value'),
-    Input('shutdown-hour-dropdown', 'value'),
-)
-def update_shutdown_time(hour, minute, shutdown_hour):
-    return functions.update_end_time_dropdown(hour, minute, shutdown_hour)
-
-# Callback to update lost end hour and minute dropdown based on lost start time
-@app.callback(
-    Output('lost-end-hour-dropdown', 'options'),
-    Output('lost-end-minute-dropdown', 'options'),
-    Input('lost-start-hour-dropdown', 'value'),
-    Input('lost-start-minute-dropdown', 'value'),
-    Input('lost-end-hour-dropdown', 'value'),
-)
-def update_lost_end_time(hour, minute, lost_end_hour):
-    return functions.update_end_time_dropdown(hour, minute, lost_end_hour)
 
 
 # if other option is selected in the checklist, show the other reason input
@@ -163,72 +226,88 @@ def show_other_reason(value):
         return {'display': 'block'}
     return {'display': 'none'}
 
-# if submit button is clicked, check if all the filled are filled
+# if log for date, arrival time and shutdown time are filled, enable the submit button
 @app.callback(
-    Output('validation-message', 'displayed'),
-    Output('validation-message', 'message'),
-    Input('submit-button', 'n_clicks'),
-    State('date-picker', 'date'),
-    State('arrival-hour-dropdown', 'value'),
-    State('arrival-minute-dropdown', 'value'),
-    State('shutdown-hour-dropdown', 'value'),
-    State('shutdown-minute-dropdown', 'value'),
-    State('lost-start-hour-dropdown', 'value'),
-    State('lost-start-minute-dropdown', 'value'),
-    State('lost-end-hour-dropdown', 'value'),
-    State('lost-end-minute-dropdown', 'value'),
-    State('reason-input', 'value'),
-    State('other-reason', 'value'),
-    State('instrument-status', 'value'),
+    Output('submit-button', 'disabled'),
+    Input('date-picker', 'date'),
+    Input('arrival-time', 'value'),
+    Input('shutdown-time', 'value'),
+    prevent_initial_call=True
 )
-def validate_input(n_clicks, date, arrival_hour, arrival_minute, shutdown_hour, shutdown_minute, lost_start_hour,
-                   lost_start_minute, lost_end_hour, lost_end_minute, reason, other_reason, instrument_status):
+def enable_submit_button(date, arrival_time, shutdown_time):
+    if date and arrival_time and shutdown_time:
+        return False
+    return True
+
+# if submit button is clicked, check if arrival time is before shutdown time and save the data to the database
+
+@app.callback(
+    [
+        Output('validation-message', 'displayed'),
+        Output('validation-message', 'message'),
+        form_data_output
+    ],
+    [
+        Input('submit-button', 'n_clicks'),
+    ],
+    State('date-picker', 'date'),
+    State('arrival-time', 'value'),
+    State('shutdown-time', 'value'),
+    [State(instrument, 'value') for instrument in instruments],
+    State('list-container-div', 'children'),
+    prevent_initial_call=True
+)
+def validate_input(n_clicks, date, arrival_time, shutdown_time, *args):
+    instrument_status = args[:-1]
+    children = args[-1]
     if not n_clicks:
-        return False, ''
-    if ctx.triggered[0]['prop_id'].split('.')[0] == 'submit-button':
-        # print(date, arrival_hour, arrival_minute, shutdown_hour, shutdown_minute, lost_start_hour,
-        #                lost_start_minute, lost_end_hour, lost_end_minute, reason, other_reason, instrument_status)
-        if not all([date, arrival_hour, arrival_minute, shutdown_hour, shutdown_minute, instrument_status]):
-            return True, 'Please fill in all the fields marked with *'
+        raise PreventUpdate
 
-        if reason and 'Other' in reason and not other_reason:
-            return True, 'You selected "Other" as a reason. Please provide the additional information.'
-        # if all fields are filled, proceed to save the data to the database
+    if callback_context.triggered[0]['prop_id'].split('.')[0] == 'submit-button':
+        if arrival_time > shutdown_time:
+            return True, 'Arrival time cannot be after shutdown time', no_update, no_update, no_update, no_update, no_update, no_update, no_update
+
+        cancel_info = []
+        for child in children:
+            try:
+                cancel_text = child['props']['children'][1]['props']['children'][0]
+                cancel_info.append(cancel_text)
+            except (IndexError, KeyError):
+                print("Error in parsing children")
+                continue
+
+        cancel_info_str = json.dumps(cancel_info).strip('[]')
+
+        instrument_values_text = ['Ready' if value else 'Not Ready' for value in instrument_status]
+
         try:
-            conn = db_connection()
-            cursor = conn.cursor()
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS operation_log (
-                    date TEXT,
-                    arrival_time TEXT,
-                    shutdown_time TEXT,
-                    lost_start_time TEXT,
-                    lost_end_time TEXT,
-                    reason TEXT,
-                    other_reason TEXT,
-                    instrument_status TEXT
-                )
-            ''')
-
-            # Handle None values for lost_start_time and lost_end_time
-            lost_start_time = f'{lost_start_hour}:{lost_start_minute}' if lost_start_hour and lost_start_minute else ''
-            lost_end_time = f'{lost_end_hour}:{lost_end_minute}' if lost_end_hour and lost_end_minute else ''
-
-            # Convert reason and instrument lists to strings
-            reason_str = ', '.join(filter(None,reason)) if reason else ''
-            instrument_str = ', '.join(filter(None,instrument_status)) if instrument_status else ''
-
-            cursor.execute('INSERT INTO operation_log (date, arrival_time, shutdown_time, lost_start_time, lost_end_time, reason, other_reason, instrument_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                           (date, f'{arrival_hour}:{arrival_minute}', f'{shutdown_hour}:{shutdown_minute}',
-                            lost_start_time, lost_end_time,
-                            reason_str, other_reason, instrument_str)
-                           )
-            conn.commit()
-            conn.close()
+            with db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''CREATE TABLE IF NOT EXISTS operation_log (
+                                    date TEXT,
+                                    arrival_time TEXT,
+                                    shutdown_time TEXT,
+                                    cancel_info TEXT,
+                                    TolTEC TEXT,
+                                    SEQUOIA TEXT,
+                                    RSR TEXT,
+                                    "1mm Rx" TEXT)''')   # Fixed the syntax error
+                cursor.execute('INSERT INTO operation_log (date, arrival_time, shutdown_time, cancel_info, TolTEC, SEQUOIA, RSR, "1mm Rx")'
+                               'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                               (date, arrival_time, shutdown_time, cancel_info_str, *instrument_values_text))
+                conn.commit()
+                print('Data saved successfully')
+                return True, 'Data saved successfully', clear_form
         except Exception as e:
             print(e)
-            return True, f'An error occurred while saving the data: {e}'
-        return True, 'All fields are filled and data has been saved successfully'
+            return True, f'An error occurred while saving the data: {e}', no_update
+
+    return no_update
+
+
+
+
+
 
 # if history button is clicked, show the history table
 @app.callback(
@@ -284,12 +363,11 @@ def download_data(n_clicks):
             # If the table exists, fetch data and create the table
             df = pd.read_sql('SELECT * FROM operation_log', conn)
             df['date'] = pd.to_datetime(df['date']).dt.strftime('%Y-%m-%d')
-            # csv_string = df.to_csv(index=False, encoding='utf-8')
-            # csv_string = "data:text/csv;charset=utf-8," + urllib.parse.quote(csv_string)
             return dcc.send_data_frame(df.to_csv, "operation_log.csv", index=False)
 
     except Exception as e:
         print(e)
         return PreventUpdate
+
 if __name__ == '__main__':
     app.run_server(debug=True)

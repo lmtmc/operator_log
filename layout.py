@@ -2,43 +2,15 @@ import dash_bootstrap_components as dbc
 import dash
 from dash import html, dcc, Input, Output, State
 import dash_auth
-
+import dash_mantine_components as dmc
+import datetime
 lost_reason = ['Bad Weather', 'Scheduled observer team not available',
                'Problem with the telescope (e.g. drive system, active surface, M2, M3, etc.)',
                'Site problem (e.g. power, ice on dish, etc.)', 'Other']
 
 instruments = ['TolTEC', 'SEQUOIA', 'RSR', '1mm Rx']
 
-red_star_style = {"color": "red", 'margin-right': '5px'}
-
-# create a list of hours and minutes for the dropdown
-def create_dropdown(id_prefix, label, options):
-    return dbc.Row([
-        dbc.Col(html.Label([
-            html.Span("*", style=red_star_style),  # Red star
-
-            # f"{label}"  # Label text
-         f"{id_prefix.capitalize()} {label}"  # Label text
-
-        ]), width='auto'),
-        dbc.Col(dcc.Dropdown(id=f'{id_prefix}-{label.lower()}-dropdown', options=options),),
-    ], justify='center', align='center', className='mb-3')
-
-def create_time_selector(id_prefix):
-    hours = [{'label': str(h).zfill(2), 'value': str(h).zfill(2)} for h in range(24)]
-    minutes = [{'label': str(m).zfill(2), 'value': str(m).zfill(2)} for m in range(60)]
-
-    hour_dropdown = create_dropdown(id_prefix, "Hour", hours)
-    minute_dropdown = create_dropdown(id_prefix, "Minute", minutes)
-
-    return html.Div([
-                     # dbc.Row(dbc.Col(dbc.Label(id_prefix.capitalize(), style={'font-weight':'bold'}),
-                     #                 width={'size':'auto', 'offset': 1})),
-                     dbc.Row([
-                         # dbc.Col(dbc.Label(id_prefix.capitalize()), width='auto'),
-                         dbc.Col(hour_dropdown, width=5),
-                         dbc.Col(minute_dropdown, width=5)
-                     ], justify='start', align='bottom', className='g-0 mb-3')])
+red_star_style = {"color": "red", 'marginRight': '5px'}
 
 #Navbar
 
@@ -83,7 +55,6 @@ navbar = dbc.Navbar(
     className='mb-5 mt-5 ml-5 mr-5'  # Overall navbar padding
 )
 
-
 form_choice = html.Div(
     [
         dbc.Row(
@@ -94,11 +65,11 @@ form_choice = html.Div(
                                             {'label': 'Edit Existing', 'value': 'edit'}],
                 inline=True,
                 value='new',
-                labelStyle={'display': 'block', 'margin-right': '20px'},
-                style={'margin-bottom': '20px'}  # Style for the RadioItems
+                labelStyle={'display': 'block', 'marginRight': '20px'},
+                style={'marginBottom': '20px'}  # Style for the RadioItems
             ),width=8),
                 dbc.Col(
-                    dbc.Button(html.Span(['Next ', html.Span('\u27A1', style={'font-size': '18px'})]),  # Unicode arrow
+                    dbc.Button(html.Span(['Next ', html.Span('\u27A1', style={'fontSize': '18px'})]),  # Unicode arrow
                                color='secondary',
                                id='next-button',
                                n_clicks=0),
@@ -106,58 +77,111 @@ form_choice = html.Div(
                     style={'textAlign': 'right'}  # Align the button to the right
                 )],
             justify='between', )],
-    style={'background-color': '#f8f9fa',  # Light grey background
-           'border': '1px solid #dee2e6',   # Border color
-           'border-radius': '5px',          # Rounded corners
-           'padding': '20px',               # Padding inside the div
-           'box-shadow': '2px 2px 2px lightgrey',  # Shadow effect
-           'margin-bottom': '20px'}   ,      # Margin at the bottom
-id='form-choice-container')
+    className='form-container',id='form-choice-container')
 
 # Define the layout for time log
-time_log = html.Div([
+time_input = html.Div([
     dbc.Card([
-        dbc.CardHeader(dbc.Row([dbc.Col(html.H5('Log for date'), width='auto'),
-                                dbc.Col(dcc.DatePickerSingle(id='date-picker'))], justify='center', align='end')),
-        dbc.CardBody([
+        dbc.CardHeader(html.H5("Log Operation Date and Time")),
+        dbc.CardBody(
             dbc.Row([
-                dbc.Col(create_time_selector('arrival'), className='text-center'),
-                dbc.Col(create_time_selector('shutdown'), className='text-center'),
-            ], justify='center',align='end' ),
+                dbc.Col(dcc.DatePickerSingle(id='date-picker'), width=4),
+                dbc.Col([
+                    dbc.Label('Arrival Time HH:MM'),
+                    dbc.Input(id='arrival-time', type='text')
+                ], className='text-center', width=4),
+                dbc.Col([
+                    dbc.Label('Shutdown Time HH:MM'),
+                    dbc.Input(id='shutdown-time', type='text')
+                ], className='text-center', width=4)
+            ], justify='center', align='center', className='mb-3')
+        )
+    ], className='mb-5')
+])
 
-        ])
-    ])
-], className='mb-5')
 
-# Observation cancellation or lost layout
-observation_cancel = html.Div([
-    dbc.Card([
-        dbc.CardHeader(dbc.Label('Observation Cancellation or Lost', id='check-lost'), ),
-        dbc.CardBody([
-            dbc.Row([
-                dbc.Col(create_time_selector('lost-start'), className='text-center'),
-                dbc.Col(create_time_selector('lost-end'), className='text-center'),
-            ], justify='center', align='end', className='mb-5'),
-            dbc.Row(html.H5([html.Span("*", style=red_star_style), 'Check the reasons for Cancellation or Lost Time'])),
-            dbc.Row(dbc.Checklist(id='reason-input',options=[{'label': i, 'value': i} for i in lost_reason]),
-            className='mb-5'),
-            html.Div([html.Span("*", style=red_star_style),'Other Reason',
-                dbc.Textarea(id='other-reason')], id='note-display',style={'display': 'none'}),
-        ], id='observation-cancel-body')
-    ])
-], className='mb-5' )
+cancel_form = dbc.Form(
+    [
+        dbc.Row(
+            [
+                dbc.Col(
+                    [
+                        dbc.Label('Lost Start Time HH:MM'),
+                        dbc.Input(type='text', id='lost-start-time')
+                    ],
+                    width='auto'
+                ),
+                dbc.Col(
+                    [
+                        dbc.Label('Lost End Time HH:MM'),
+                        dbc.Input(type='text', id='lost-end-time')
+                    ],
+                    width='auto'
+                ),
+                dbc.Col(
+                    [
+                        dbc.Label('Reasons'),
+                        dbc.Checklist(
+                            options=[{'label': i, 'value': i} for i in lost_reason],
+                            id='reason-input', inline=True
+                        ),
+                        html.Div(
+                            [
+                                html.Span("*", style=red_star_style),
+                                'Other Reason',
+                                dbc.Textarea(id='other-reason')
+                            ],
+                            id='note-display', style={'display': 'none'}
+                        )
+                    ],
+                    width='5'
+                ),
+                dbc.Col(dbc.Button('Add', id='add-button',  disabled=True,n_clicks=0),width='auto'),
+                dbc.Col(dbc.Button('Remove ', id='remove-button', disabled=True, n_clicks=0), width='auto'),
+            ]
+        )
+    ]
+)
+
+
+cancel_input = html.Div(
+    dbc.Card(
+        [
+            dbc.CardHeader(html.H5("Log Cancellation")),
+            dbc.CardBody(
+                [
+                    html.Div(cancel_form),
+                    html.Div(id='list-container-div',
+                             style={'maxHeight': '300px', 'overflowY': 'auto', 'display': 'none'},
+                             className='form-container'),
+                ]
+
+            ),
+
+        ]
+    )
+
+)
+
 
 instrument_status = html.Div([
         dbc.Card([
-            dbc.CardHeader("Facility Instruments Ready"),
+            dbc.CardHeader(html.H5("Facility Instruments Ready")),
             dbc.CardBody([
-                dbc.Checklist(id='instrument-status',
-                options = [{"label": instrument, 'value': instrument} for instrument in instruments], switch=True
-                              , inline=True,),
+                dbc.Row(
+                    [
+                        dbc.Col([
+                            dbc.Checklist(
+                                id=instrument,
+                                options=[{'label': instrument, 'value': False}],
+                                switch=True,
+                                inline=True
+                            )
+                        ]) for i, instrument in enumerate(instruments)
+                    ]
+                )
 
-            ]
-
-            )
+                ])
         ])
     ], className='mb-5')
 
@@ -177,11 +201,15 @@ table_modal = dbc.Modal(
 )
 
 form_input = html.Div(id='form-container',children=[
-    time_log,
-    observation_cancel,
-    instrument_status,
+    html.Div([
+        time_input,
+        instrument_status,
+        cancel_input,
+    ],style={'border': '1px solid grey', 'padding': '20px', 'border-radius': '10px', 'marginBottom': '50px'}),
+
+
     dbc.Row([
-        dbc.Col(dbc.Button('Save', id='save-button', color='secondary', ), width='auto'),
-        dbc.Col(dbc.Button('Submit', id='submit-button',  color='secondary',), width='auto')
+        dbc.Col(dbc.Button('Save Form', id='save-button', className='large-button', color='secondary'),  width='auto'),
+        dbc.Col(dbc.Button('Submit Form', id='submit-button', className='large-button', color='secondary'), width='auto')
     ],justify='end'),],style={'display': 'none'},
     )

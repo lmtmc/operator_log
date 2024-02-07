@@ -1,0 +1,15 @@
+
+
+.form-container {
+    background-color: #f8f9fa;  /* Light grey background */
+    border: 1px solid #dee2e6;   /* Border color */
+    border-radius: 5px;          /* Rounded corners */
+    padding: 20px;               /* Padding inside the div */
+    box-shadow: 2px 2px 2px lightgrey;  /* Shadow effect */
+    margin-bottom: 20px;         /* Margin at the bottom */
+}
+
+.large-button {
+    font-size: 15px;  /* Larger font size */
+    padding: 10px 100px;  /* Larger padding */
+}
