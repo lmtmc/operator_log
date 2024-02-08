@@ -2,7 +2,6 @@ import dash_bootstrap_components as dbc
 import dash
 from dash import html, dcc, Input, Output, State
 import dash_auth
-import dash_mantine_components as dmc
 import datetime
 lost_reason = ['Bad Weather', 'Scheduled observer team not available',
                'Problem with the telescope (e.g. drive system, active surface, M2, M3, etc.)',

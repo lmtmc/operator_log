@@ -6,7 +6,7 @@ import sqlite3
 import pandas as pd
 import datetime
 from layout import navbar,form_choice, form_input, table_modal
-
+import json
 # Username and password for the app
 VALID_USERNAME_PASSWORD_PAIRS = {
     'admin': 'admin',
@@ -51,9 +51,10 @@ form_data_output = [
     Output(instruments[2], 'value',allow_duplicate=True),
     Output(instruments[3], 'value',allow_duplicate=True),
     Output('list-container-div', 'children',allow_duplicate=True),
+    Output('list-container-div', 'style',allow_duplicate=True),
 ]
 
-clear_form = [datetime.datetime.today().date(),'','',False,False,False,False,'']
+clear_form = [datetime.datetime.today().date(),'','',False,False,False,False,'',{'display':'none'}]
 # Database connection
 def db_connection():
     conn = sqlite3.connect('record.db')
@@ -86,8 +87,8 @@ def show_form(n_clicks, saved_data, choice):
             data_values = list(saved_data.values())
             return {'display': 'block'},  {'display': 'none'}, *data_values
         else:
-
-            return {'display': 'none'}, {'display': 'none'},no_update,no_update,no_update,no_update,no_update
+            return ({'display': 'none'}, {'display': 'none'},
+                    no_update,no_update,no_update,no_update,no_update,no_update,no_update,no_update,no_update)
     return PreventUpdate
 
 # if lost start time, lost end time, or reason input are filled, then the add cancellation button is enabled
@@ -125,6 +126,8 @@ def enable_remove_button(values):
     Output('lost-start-time', 'value', allow_duplicate=True),
     Output('lost-end-time', 'value', allow_duplicate=True),
     Output('reason-input', 'value', allow_duplicate=True),
+    Output('validation-message', 'displayed', allow_duplicate=True),
+    Output('validation-message', 'message', allow_duplicate=True),
     Input('add-button', 'n_clicks'),
     State('lost-start-time', 'value'),
     State('lost-end-time', 'value'),
@@ -141,24 +144,28 @@ def add_item(n_clicks, start_time, end_time, reason, other_reason):
         if other_reason:
             reason = [other_reason if item=='Other' else item for item in reason]
     reason = ', '.join(item for item in reason if item is not None)
-    new_item = html.Div(
-        [
-            dcc.Checklist(
-                options=[{'label': "", "value":"done"}],
-                id={"index": n_clicks, "type": "done"},
-                style={"display":"inline"},
-                labelStyle={"display":"inline"},
-            ),
-            html.Div(
-                [f'Cancel from {start_time} to {end_time} due to {reason}'],
-                id={"index": n_clicks, "type": "output-str"},
-                style={"display":"inline", "margin":"10px"},
-            )
-        ]
-    )
-    # append the new item to the list
-    patched_list.append(new_item)
-    return patched_list, {'display':'block'}, '', '', ''
+    # validate the lost start time is earlier than the lost end time
+    if start_time > end_time:
+        return no_update, no_update, '', '', '', True, 'Lost start time cannot be after lost end time'
+    else:
+        new_item = html.Div(
+            [
+                dcc.Checklist(
+                    options=[{'label': "", "value":"done"}],
+                    id={"index": n_clicks, "type": "done"},
+                    style={"display":"inline"},
+                    labelStyle={"display":"inline"},
+                ),
+                html.Div(
+                    [f'Cancel from {start_time} to {end_time} due to {reason}'],
+                    id={"index": n_clicks, "type": "output-str"},
+                    style={"display":"inline", "margin":"10px"},
+                )
+            ]
+        )
+        # append the new item to the list
+        patched_list.append(new_item)
+        return patched_list, {'display':'block'}, '', '', '', False, ''
 
 # callback to remove the selected item from the list
 @app.callback(
@@ -192,15 +199,16 @@ def remove_item(n_clicks, values,):
     State('RSR', 'value'),
     State('1mm Rx', 'value'),
     State('list-container-div', 'children'),
+    State('list-container-div', 'style'),
     prevent_initial_call=True
 )
-def save_data(n_clicks, date, arrival_time, shutdown_time, instrument0,instrument1, instrument2, instrument3, children):
+def save_data(n_clicks, date, arrival_time, shutdown_time, instrument0,instrument1, instrument2, instrument3, children, style):
      if n_clicks is None or n_clicks == 0:
           raise PreventUpdate
      if ctx.triggered[0]['prop_id'].split('.')[0] == 'save-button':
           return {'date-picker': date, 'arrival-time': arrival_time, 'shutdown-time': shutdown_time,
                   instruments[0]: instrument0, instruments[1]: instrument1, instruments[2]: instrument2,
-                  instruments[3]: instrument3, 'cancel-info': children}
+                  instruments[3]: instrument3, 'cancel-info': children, 'cancel-info-style': style}
      return no_update
 
 
@@ -263,9 +271,9 @@ def validate_input(n_clicks, date, arrival_time, shutdown_time, *args):
     if not n_clicks:
         raise PreventUpdate
 
-    if callback_context.triggered[0]['prop_id'].split('.')[0] == 'submit-button':
+    if ctx.triggered[0]['prop_id'].split('.')[0] == 'submit-button':
         if arrival_time > shutdown_time:
-            return True, 'Arrival time cannot be after shutdown time', no_update, no_update, no_update, no_update, no_update, no_update, no_update
+            return True, 'Arrival time cannot be after shutdown time', [no_update]*9
 
         cancel_info = []
         for child in children:
@@ -300,7 +308,7 @@ def validate_input(n_clicks, date, arrival_time, shutdown_time, *args):
                 return True, 'Data saved successfully', clear_form
         except Exception as e:
             print(e)
-            return True, f'An error occurred while saving the data: {e}', no_update
+            return True, f'An error occurred while saving the data: {e}', [no_update]*9
 
     return no_update
 
