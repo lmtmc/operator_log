@@ -28,29 +28,23 @@ python3 app.py
 ```
 The application will then be accessible at http://127.0.0.1:8050.
 
-### Log In:
+### Arriving:
 
-- Username: admin
-- Password: admin
+- Click the "Arrive" button and the arrival time will be recorded in the database.
 
 
-### Input Data:
 
-Fill in the form with the required information. The form is divided into three sections:
-- Date and Time (required)
-- Telescope Status (required and the default value is 'Not Ready')
-- Cancellations 
-  - Not required if there's no cancellation
-  - If there is a cancellation, the user can input the time and reason for the cancellation and click the 'Add' button to add the cancellation to the list. 
-  - The user can also remove a cancellation by selecting the cancellations and clicking the 'Remove' button. 
-  - You can add and remove multiply cancellations
+### Facility Instruments Ready:
 
-### Save Data:
-If the operator wants to save the data and continue logging, click the 'Save' button. The data will be saved for the current session and be retrieved when the user logs in and selects 'Edit existing log' again.
-### Submit Data:
+- Click all the ready instrument and the submit button, then the instrument status will be recorded in the database.
 
-Click the 'Submit' button. The data will first be validated. If validation is successful, the data will be saved to the database.
-### View and download Log:
+### Report A Problem:
 
-- Click the 'Log' button in the navbar and select 'Log History' to display the data stored in the database. 
-- Select the 'Download Log' button to download the data stored in the database as a CSV file.
+- Click the "Report A Problem" button and fill the information and click the 'report' button, the problem will be recorded in the database.
+- After the problem is resolved, click the "Fixed" button and the problem will be marked as resolved in the database.
+- If another problem arises, repeat the above steps. 
+
+### Leaving:
+
+- Click the "Leave" button and the leave time will be recorded in the database.
+
