@@ -7,12 +7,11 @@ lost_reason = ['Bad Weather', 'Scheduled observer team not available',
                'Problem with the telescope (e.g. drive system, active surface, M2, M3, etc.)',
                'Site problem (e.g. power, ice on dish, etc.)', 'Other']
 
-instruments = ['TolTEC', 'SEQUOIA', 'RSR', '1mm Rx']
+instruments = ['rsr', 'sequoia', 'toltec', 'one_mm']
 
 red_star_style = {"color": "red", 'marginRight': '5px'}
 
 #Navbar
-
 navbar = dbc.Navbar(
     dbc.Container(
         [
@@ -53,6 +52,99 @@ navbar = dbc.Navbar(
     dark=True,
     className='mb-5 mt-5 ml-5 mr-5'  # Overall navbar padding
 )
+
+status_update = html.Div(
+    [
+        html.Div(id='arrival-status', className='mb-3'),
+        html.Div(id='instrument-status', className='mb-3'),
+        html.Div(id='problem-status', className='mb-3'),
+        html.Div(id='fixed-status', className='mb-3'),
+        html.Div(id='leave-status'),
+    ], className='mt-3, form-container', id='status-container', style={'display': 'none', 'height': '500px'})
+
+
+arrival_time = html.Div(
+    [
+        dbc.Button("Arrive", n_clicks=0, className='large-button',id='arrival-btn'),
+        dbc.Button('Leave', n_clicks=0, className='large-button', id ='leave-btn', disabled=True),
+        dbc.Button('Report A Problem', id='report-problem-btn', className='large-button', disabled=True),
+    ],className='mb-5 centered-div'
+)
+
+instrument_status = html.Div(
+    [
+        dbc.Card(
+            [
+                dbc.CardHeader(html.H5("Facility Instruments Ready")),
+                dbc.CardBody(
+                    [
+                        dbc.Row(
+                            [
+                                dbc.Col([
+                                    dbc.Checklist(
+                                        id=instrument,
+                                        options=[{'label': instrument, 'value': 1}],
+                                        switch=True,
+                                        inline=True
+                                    )
+                                ]) for i, instrument in enumerate(instruments)
+                    ]
+                )
+
+                ]),
+            dbc.CardFooter(html.Div(dbc.Button('submit', id='instrument-status-btn', className='mt-3'),
+                                    className='right-aligned-buttons'))
+        ]),
+    ],
+    id='instrument-status-check',style={'display':'none'}, className='mb-5')
+
+
+labels = ['Weather', 'Icing', 'Power', 'Observer', 'Other']
+reason_form1 = html.Div(
+    [
+        dbc.Label('Reasons'),
+        dbc.Checklist(
+                options=[{'label': i, 'value': i} for i in lost_reason],
+                id='reason-input', inline=True
+            ),
+        html.Div(
+                [
+                    html.Span("*", style=red_star_style),
+                    'Other Reason',
+                    dbc.Textarea(id='other-reason')
+                ],
+                id='note-display', style={'display': 'none'}
+            ),
+])
+
+reason_form2 =dbc.Card(
+        [
+            dbc.CardHeader(html.H5("Report Problem")),
+            dbc.CardBody(
+                [
+                    dbc.Row(
+                    [dbc.Col(
+                        [
+                            dbc.Col(dbc.Label(label), ),
+                            dbc.Col(dbc.Input(id=f"lost-{label.lower()}"), )
+                        ],width = 2
+                    ) for label in labels]
+                )
+            ]
+        ),
+            dbc.CardFooter(
+                html.Div(
+                    [
+                        dbc.Button('Report', id='reason-report', className='me-2'),
+                        dbc.Button('Fixed',id='fixed-btn', disabled=True),
+                    ],className='mt-3 right-aligned-buttons',
+            )
+        )
+    ])
+
+reason_form = html.Div(reason_form2,id='reason-form', style={'display': 'none'}, className='mb-5 form-container')
+# label and input for the form (Weather, Icing, Power, Observer, Other)
+
 
 form_choice = html.Div(
     [
@@ -117,24 +209,24 @@ cancel_form = dbc.Form(
                     ],
                     width='auto'
                 ),
-                dbc.Col(
-                    [
-                        dbc.Label('Reasons'),
-                        dbc.Checklist(
-                            options=[{'label': i, 'value': i} for i in lost_reason],
-                            id='reason-input', inline=True
-                        ),
-                        html.Div(
-                            [
-                                html.Span("*", style=red_star_style),
-                                'Other Reason',
-                                dbc.Textarea(id='other-reason')
-                            ],
-                            id='note-display', style={'display': 'none'}
-                        )
-                    ],
-                    width='5'
-                ),
+                # dbc.Col(
+                #     [
+                #         dbc.Label('Reasons'),
+                #         dbc.Checklist(
+                #             options=[{'label': i, 'value': i} for i in lost_reason],
+                #             id='reason-input', inline=True
+                #         ),
+                #         html.Div(
+                #             [
+                #                 html.Span("*", style=red_star_style),
+                #                 'Other Reason',
+                #                 dbc.Textarea(id='other-reason')
+                #             ],
+                #             id='note-display', style={'display': 'none'}
+                #         )
+                #     ],
+                #     width='5'
+                # ),
                 dbc.Col(dbc.Button('Add', id='add-button',  disabled=True,n_clicks=0),width='auto'),
                 dbc.Col(dbc.Button('Remove ', id='remove-button', disabled=True, n_clicks=0), width='auto'),
             ]
@@ -163,26 +255,7 @@ cancel_input = html.Div(
 )
 
 
-instrument_status = html.Div([
-        dbc.Card([
-            dbc.CardHeader(html.H5("Facility Instruments Ready")),
-            dbc.CardBody([
-                dbc.Row(
-                    [
-                        dbc.Col([
-                            dbc.Checklist(
-                                id=instrument,
-                                options=[{'label': instrument, 'value': False}],
-                                switch=True,
-                                inline=True
-                            )
-                        ]) for i, instrument in enumerate(instruments)
-                    ]
-                )
 
-                ])
-        ])
-    ], className='mb-5')
 
 table_modal = dbc.Modal(
     [

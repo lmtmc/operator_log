@@ -7,9 +7,24 @@
     padding: 20px;               /* Padding inside the div */
     box-shadow: 2px 2px 2px lightgrey;  /* Shadow effect */
     margin-bottom: 20px;         /* Margin at the bottom */
+    height: 300px;               /* Set the height */
+    overflow: auto;              /* Add scroll bar if content is too long */
 }
 
 .large-button {
     font-size: 15px;  /* Larger font size */
     padding: 10px 100px;  /* Larger padding */
+}
+
+.right-aligned-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px; /* Adjust the space between buttons */
+}
+
+.centered-div {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 50px; /* Adjust the space between buttons */
 }
