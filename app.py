@@ -75,6 +75,7 @@ app.layout = dbc.Container([
     instrument_status,
     reason_form,
     status_update,
+    table_modal,
     dcc.Store(id='data-save', data={}, storage_type='memory'),
 ], id='page-content', className='mt-5')
 
@@ -234,6 +235,7 @@ def handle_fixed_click(n_clicks, data_save, *args):
     Output('leave-btn', 'disabled'),
     Output('leave-status', 'children'),
     Output('leave-status', 'style'),
+    Output('arrival-btn', 'disabled'),
     Output('report-problem-btn', 'disabled'),
     Output('instrument-status-check', 'style'),
     Output('reason-form', 'style'),
@@ -254,7 +256,20 @@ def handle_leave_click(n_clicks):
         # Rollback in case of exception
         session.rollback()
         print("Error occurred:", e)
-    return True, f'Leave at {leave_time}', show, True, hide,hide
+    return True, f'Leave at {leave_time}', show, False, True, hide,hide
+
+# click the log history button, show the log history table
+@app.callback(
+    Output('table-container', 'is_open'),
+    Input('history-button', 'n_clicks'),
+    prevent_initial_call=True
+)
+def handle_log_history_click(n_clicks):
+    if n_clicks is None or n_clicks == 0:
+        raise PreventUpdate
+    return True
+
+# click the download log button, download the log history table
 
 if __name__ == '__main__':
     app.run_server(debug=True)
