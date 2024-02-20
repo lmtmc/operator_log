@@ -312,32 +312,31 @@ def save_log_data():
     Output('table-container', 'is_open'),
     Output('modal-body-content', 'children'),
     Input('history-button', 'n_clicks'),
+    Input('close-modal', 'n_clicks'),
+    State('table-container', 'is_open'),
     prevent_initial_call=True
 )
-def handle_log_history_click(n_clicks):
-    if n_clicks is None or n_clicks == 0:
+def handle_log_history_click(n1, n2, is_open):
+    if n1 is None and n2 is None:
         raise PreventUpdate
-    log_data = fetch_log_data()
-    table = dash_table.DataTable(
-        id='log-table',
-        columns=[{'name': col, 'id': col} for col in log_data.columns],
-        data=log_data.to_dict('records'),
-        style_table={'overflowX': 'auto', 'maxHeight': '500px'},
-        style_data_conditional=[
-            {
-                'if': {'row_index': 'odd'},
-                'backgroundColor': 'rgb(248, 248, 248)'
+    if n1 or n2:
+        return not is_open, dash_table.DataTable(
+            id='log-table',
+            columns=[{'name': col, 'id': col} for col in fetch_log_data().columns],
+            data=fetch_log_data().to_dict('records'),
+            style_table={'overflowX': 'auto', 'maxHeight': '500px'},
+            style_data_conditional=[
+                {
+                    'if': {'row_index': 'odd'},
+                    'backgroundColor': 'rgb(248, 248, 248)'
+                }
+            ],
+            style_header={
+                'backgroundColor': 'rgb(230, 230, 230)',
+                'fontWeight': 'bold'
             }
-        ],
-        style_header={
-            'backgroundColor': 'rgb(230, 230, 230)',
-            'fontWeight': 'bold'
-        }
-    )
-    # table = dbc.Table.from_dataframe(log_data, striped=True, bordered=True, hover=True)
-    # print('log_data', log_data)
-    # print('table', table)
-    return True, table
+        )
+    return no_update, no_update
 
 # click the download log button, download the log db as a csv file
 @app.callback(
