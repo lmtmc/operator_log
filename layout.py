@@ -20,7 +20,9 @@ navbar = dbc.Navbar(
             dbc.Collapse(
                 dbc.Row(
                     [
-                        dbc.Col(dbc.NavLink("Operator: admin",style={'color': 'white'}), width='auto'),
+                        dbc.Col(dbc.NavLink("Enter Data", href="/enter-data", style={'color': 'white'}), width='auto'),
+                        dbc.Col(dbc.NavLink("Search", href="/search", style={'color': 'white'}), width='auto'),
+                        dbc.Col(dbc.NavLink("Report", href="/report", style={'color': 'white'}), width='auto'),
                         dbc.Col(
                             dbc.DropdownMenu(
                                 label='Log',
@@ -66,8 +68,8 @@ status_update = html.Div(
 arrival_time = html.Div(
     [
         dbc.Button("Arrive", n_clicks=0, className='large-button',id='arrival-btn'),
-        dbc.Button('Leave', n_clicks=0, className='large-button', id ='leave-btn', disabled=True),
         dbc.Button('Report A Problem', id='report-problem-btn', className='large-button', disabled=True),
+        dbc.Button('Leave', n_clicks=0, className='large-button', id ='leave-btn', disabled=True),
     ],className='mb-5 centered-div'
 )
 
@@ -209,24 +211,6 @@ cancel_form = dbc.Form(
                     ],
                     width='auto'
                 ),
-                # dbc.Col(
-                #     [
-                #         dbc.Label('Reasons'),
-                #         dbc.Checklist(
-                #             options=[{'label': i, 'value': i} for i in lost_reason],
-                #             id='reason-input', inline=True
-                #         ),
-                #         html.Div(
-                #             [
-                #                 html.Span("*", style=red_star_style),
-                #                 'Other Reason',
-                #                 dbc.Textarea(id='other-reason')
-                #             ],
-                #             id='note-display', style={'display': 'none'}
-                #         )
-                #     ],
-                #     width='5'
-                # ),
                 dbc.Col(dbc.Button('Add', id='add-button',  disabled=True,n_clicks=0),width='auto'),
                 dbc.Col(dbc.Button('Remove ', id='remove-button', disabled=True, n_clicks=0), width='auto'),
             ]

@@ -3,6 +3,7 @@
 # todo if leave the site click the leave button
 import dash
 import dash_auth
+import dash_table
 from dash import html, dcc, Input, Output, State, no_update, ctx, Patch, ALL, no_update
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
@@ -62,7 +63,7 @@ Base.metadata.create_all(bind=engine)
 
 # Initialize the Dash app
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, 'assets/style.css'],
-                prevent_initial_callbacks="initial_duplicate")
+                prevent_initial_callbacks="initial_duplicate", suppress_callback_exceptions=True)
 
 hide = {'display': 'none'}
 show = {'display': 'block'}
@@ -71,13 +72,43 @@ show = {'display': 'block'}
 app.layout = dbc.Container([
 
     navbar,
-    arrival_time,
-    instrument_status,
-    reason_form,
-    status_update,
-    table_modal,
-    dcc.Store(id='data-save', data={}, storage_type='memory'),
-], id='page-content', className='mt-5')
+    dcc.Location(id='url', refresh=False),
+    html.Div(id='page-content', children=[]),
+])
+
+def enter_data():
+    return html.Div([
+        arrival_time,
+        instrument_status,
+        reason_form,
+        status_update,
+        table_modal,
+        dcc.Store(id='data-save', data={}, storage_type='memory'),
+        dcc.Download(id='download-log')
+    ])
+
+def search_layout():
+    return html.Div([
+        html.H3('Search')
+    ])
+
+def report_layout():
+    return html.Div([
+        html.H3('Report')
+    ])
+
+@app.callback(Output('page-content', 'children'),
+              Input('url', 'pathname'),
+              prevent_initial_call=True)
+def display_page(pathname):
+    if pathname == '/enter-data' or pathname == '/':
+        return enter_data()
+    elif pathname == '/search':
+        return search_layout()
+    elif pathname == '/report':
+        return report_layout()
+    else:
+        return enter_data()
 
 instruments = ['rsr', 'sequoia', 'toltec', 'one_mm']
 
@@ -258,18 +289,66 @@ def handle_leave_click(n_clicks):
         print("Error occurred:", e)
     return True, f'Leave at {leave_time}', show, False, True, hide,hide
 
+
+def fetch_log_data():
+    log_data = session.query(Log).all()
+    log_data = pd.DataFrame([{key: value for key, value in log.__dict__.items() if key != '_sa_instance_state'} for log in log_data])
+    log_data.drop(columns=['id'], inplace=True)
+    return log_data
+def generate_csv(data):
+    desired_order = ['timestamp', 'arrival_time', 'shutdown_time', 'rsr', 'sequoia', 'toltec', 'one_mm', 'lost_time_start', 'lost_time_end', 'lost_time_weather', 'lost_time_icing', 'lost_time_power', 'lost_time_observers', 'lost_time_other']
+    data = data[desired_order]
+    return data.to_csv(index=False, encoding='utf-8-sig')
+
+def save_log_data():
+    log_data = fetch_log_data()
+    log_csv = generate_csv(log_data)
+    with open('log.csv', 'w') as f:
+        f.write(log_csv)
+    return 'log.csv'
+
 # click the log history button, show the log history table
 @app.callback(
     Output('table-container', 'is_open'),
+    Output('modal-body-content', 'children'),
     Input('history-button', 'n_clicks'),
     prevent_initial_call=True
 )
 def handle_log_history_click(n_clicks):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
-    return True
+    log_data = fetch_log_data()
+    table = dash_table.DataTable(
+        id='log-table',
+        columns=[{'name': col, 'id': col} for col in log_data.columns],
+        data=log_data.to_dict('records'),
+        style_table={'overflowX': 'auto', 'maxHeight': '500px'},
+        style_data_conditional=[
+            {
+                'if': {'row_index': 'odd'},
+                'backgroundColor': 'rgb(248, 248, 248)'
+            }
+        ],
+        style_header={
+            'backgroundColor': 'rgb(230, 230, 230)',
+            'fontWeight': 'bold'
+        }
+    )
+    # table = dbc.Table.from_dataframe(log_data, striped=True, bordered=True, hover=True)
+    # print('log_data', log_data)
+    # print('table', table)
+    return True, table
 
-# click the download log button, download the log history table
+# click the download log button, download the log db as a csv file
+@app.callback(
+    Output('download-log', 'data'),
+    Input('download-button', 'n_clicks'),
+    prevent_initial_call=True
+)
+def handle_download_log_click(n_clicks):
+    if n_clicks is None or n_clicks == 0:
+        raise PreventUpdate
+    return dcc.send_file(save_log_data())
 
 if __name__ == '__main__':
     app.run_server(debug=True)
