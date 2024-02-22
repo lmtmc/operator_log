@@ -3,14 +3,12 @@
 # todo if leave the site click the leave button
 import dash
 import dash_auth
-import dash_table
-from dash import html, dcc, Input, Output, State, no_update, ctx, Patch, ALL, no_update
+from dash import html, dcc, Input, Output, State, no_update, ctx, Patch, ALL, no_update, dash_table
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 import pandas as pd
 import datetime
-from layout import (navbar,arrival_time,instrument_status,status_update,
-                    form_choice, form_input, table_modal,reason_form)
+from layout import (navbar,arrival_time, leave_time, instrument_status,table_modal,problem_form)
 import json
 from sqlalchemy import create_engine, ForeignKey, Column, Integer, String, CHAR, DateTime, Boolean
 from sqlalchemy.ext.declarative import declarative_base
@@ -75,15 +73,49 @@ app.layout = dbc.Container([
     dcc.Location(id='url', refresh=False),
     html.Div(id='page-content', children=[]),
 ])
+def fetch_log_data():
+    log_count = session.query(Log).count()
+    if log_count == 0:
+        return pd.DataFrame(columns=['id','timestamp', 'arrival_time', 'shutdown_time', 'rsr', 'sequoia', 'toltec', 'one_mm',
+                                     'lost_time_start', 'lost_time_end', 'lost_time_weather', 'lost_time_icing',
+                                     'lost_time_power', 'lost_time_observers', 'lost_time_other'])
+
+    query_result = session.query(Log).order_by(Log.timestamp.desc()).limit(10)
+    print('query_result',query_result)
+    desired_order = ['id', 'timestamp', 'arrival_time', 'shutdown_time', 'rsr', 'sequoia', 'toltec', 'one_mm',
+                 'lost_time_start', 'lost_time_end', 'lost_time_weather', 'lost_time_icing', 'lost_time_power',
+                 'lost_time_observers', 'lost_time_other']
+    log_data = pd.DataFrame([{key: value for key, value in log.__dict__.items() if key != '_sa_instance_state'} for log in query_result])
+
+    return log_data[desired_order]
+def generate_csv(data):
+    return data.to_csv(index=False, encoding='utf-8-sig')
 
 def enter_data():
     return html.Div([
-        arrival_time,
-        instrument_status,
-        reason_form,
-        status_update,
+        dbc.Row([
+            dbc.Col(arrival_time,width='auto'),
+            dbc.Col(instrument_status, width='auto'),
+            dbc.Col(leave_time, width='auto'),
+        ]),
+        dbc.Row(dbc.Col(problem_form), ),
+        html.Div(dash_table.DataTable(
+            id='log-table',
+            columns=[{'name': col, 'id': col} for col in fetch_log_data().columns],
+            data=fetch_log_data().to_dict('records'),
+            style_table={'overflowX': 'auto', 'maxHeight': '500px'},
+            style_data_conditional=[
+                {
+                    'if': {'row_index': 'odd'},
+                    'backgroundColor': 'rgb(248, 248, 248)'
+                }
+            ],
+            style_header={
+                'backgroundColor': 'rgb(230, 230, 230)',
+                'fontWeight': 'bold'
+            }
+        ),className='mt-3 form-container', id='status-container'),
         table_modal,
-        dcc.Store(id='data-save', data={}, storage_type='memory'),
         dcc.Download(id='download-log')
     ])
 
@@ -97,6 +129,13 @@ def report_layout():
         html.H3('Report')
     ])
 
+def log_time(current_time):
+    if current_time is None:
+        return ''
+    else:
+        return datetime.datetime.strptime(current_time, '%Y-%m-%dT%H:%M').strftime('%Y-%m-%d %H:%M:%S')
+def current_time():
+    return datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 @app.callback(Output('page-content', 'children'),
               Input('url', 'pathname'),
               prevent_initial_call=True)
@@ -112,39 +151,33 @@ def display_page(pathname):
 
 instruments = ['rsr', 'sequoia', 'toltec', 'one_mm']
 
-# if arrive button is clicked, show the instrument status form and the status update container
+# if arrive button is clicked, save the arrival time in the database and update the status-container
 @app.callback(
-    Output('instrument-status-check', 'style', allow_duplicate=True),
-    Output('arrival-btn', 'disabled', allow_duplicate=True),
-    Output('status-container', 'style', allow_duplicate=True),
-    Output('leave-btn', 'disabled', allow_duplicate=True),
-    Output('report-problem-btn', 'disabled', allow_duplicate=True),
-    Output('arrival-status', 'children', allow_duplicate=True),
+    Output('log-table', 'data', allow_duplicate=True),
     Input('arrival-btn', 'n_clicks'),
+    State('arrival-time-input', 'value'),
     prevent_initial_call=True
 )
-def handle_arrival_click(n_clicks):
+def handle_arrival_click(n_clicks, arrival_time):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
-
-    arrived_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    print('input arrival time', arrival_time)
     try:
-        new_log = Log(timestamp=arrived_time, arrival_time=arrived_time,
+        new_log = Log(timestamp=current_time(), arrival_time=log_time(arrival_time),
                       shutdown_time='', rsr=False, sequoia=False, toltec=False, one_mm=False,
                       lost_time_start='', lost_time_end='', lost_time_weather='', lost_time_icing='',
                       lost_time_power='', lost_time_observers='', lost_time_other='')
         session.add(new_log)
         session.commit()
-        print('add arrival time to the database')
     except Exception as e:
         # Rollback in case of exception
         session.rollback()
         print("Error occurred:", e)
-    return show, True, show, False, False, f'Arrive at {arrived_time}'
+    return fetch_log_data().to_dict('records')
 # if instrument status button is clicked, save the instrument status in the database
 @app.callback(
-    Output('instrument-status', 'children', allow_duplicate=True),
-    Input('instrument-status-btn', 'n_clicks'),
+    Output('log-table', 'data', allow_duplicate=True),
+    Input('instrument-btn', 'n_clicks'),
     State(instruments[0], 'value'),
     State(instruments[1], 'value'),
     State(instruments[2], 'value'),
@@ -157,54 +190,52 @@ def handle_instrument_status_click(n_clicks, *args):
     try:
         # Correctly using datetime object for timestamp
         instrument_statuses = {instruments[i]: 1 if args[i] is not None and args[i][0] == 1 else 0 for i in range(4)}
-        new_log = Log(timestamp=datetime.datetime.now(), arrival_time='', shutdown_time='', **instrument_statuses,
+        new_log = Log(timestamp=current_time(), arrival_time='', shutdown_time='', **instrument_statuses,
                       lost_time_start='', lost_time_end='', lost_time_weather='', lost_time_icing='',
                       lost_time_power='', lost_time_observers='', lost_time_other='')
         session.add(new_log)
         session.commit()
-        print('add instrument status to the database')
+        print('add instrument status to the database','new_log',new_log)
     except Exception as e:
         # Rollback in case of exception
         session.rollback()
         print("Error occurred:", e)
-    return f'Instruments Checked {", ".join([f"{k} is ready" if v else f"{k} is not ready" for k, v in instrument_statuses.items()])}'
+    return fetch_log_data().to_dict('records')
 
-# if report a problem button is clicked, show the reason form
+# if report a problem button is clicked, disable the report button and enable the fix button, if the problem is fixed
+# if click the fixed button, enable the report button and disable the fixed button
 @app.callback(
-    Output('reason-form', 'style', allow_duplicate=True),
-    Output('reason-report', 'disabled', allow_duplicate=True),
-    Output('fixed-btn', 'disabled', allow_duplicate=True),
+    Output('report-problem-btn', 'disabled'),
+    Output('fixed-btn', 'disabled'),
     Input('report-problem-btn', 'n_clicks'),
+    Input('fixed-btn', 'n_clicks'),
     prevent_initial_call=True
 )
-def handle_report_problem_click(n_clicks):
-    if n_clicks is None or n_clicks == 0:
+def handle_problem_click(report_clicks, fixed_clicks):
+    if ctx.triggered_id is None:
         raise PreventUpdate
-    return show, False, True
+    if ctx.triggered_id == 'report-problem-btn':
+        return True, False
+    if ctx.triggered_id == 'fixed-btn':
+        return False, True
 
 # if report button is clicked, save the reason and report time in the database and enable the fixed button, disable the report button
 labels = ['Weather', 'Icing', 'Power', 'Observer', 'Other']
 lost_state = [State(f"lost-{label.lower()}", 'value') for label in labels]
+lost_output = [Output(f"lost-{label.lower()}", 'value', allow_duplicate=True) for label in labels]
 @app.callback(
-    Output('fixed-btn', 'disabled'),
-    Output('reason-report', 'disabled'),
-    Output('problem-status', 'children'),
-    Output('data-save', 'data',allow_duplicate=True),
-    Input('reason-report', 'n_clicks'),
-    State('data-save', 'data'),
-    lost_state,
+    [Output('log-table', 'data', allow_duplicate=True)]+lost_output,
+    Input('report-problem-btn', 'n_clicks'),
+    [State('problem-time', 'value')] + lost_state,
     prevent_initial_call=True
 )
-def handle_problem_submission(n_clicks, data_save, *args):
+def handle_problem_submission(n_clicks, problem_time, *args):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
     # Format the report time as a string
-    report_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
     try:
-        print(args)
-        new_log = Log(timestamp=report_time, arrival_time='', shutdown_time='', rsr='', sequoia='', toltec='',
-                      one_mm='', lost_time_start=report_time, lost_time_end='',
+        new_log = Log(timestamp=current_time(), arrival_time='', shutdown_time='', rsr='', sequoia='', toltec='',
+                      one_mm='', lost_time_start=log_time(problem_time), lost_time_end='',
                       lost_time_weather=args[0], lost_time_icing=args[1],lost_time_power=args[2],
                       lost_time_observers=args[3], lost_time_other=args[4])
         session.add(new_log)
@@ -212,37 +243,23 @@ def handle_problem_submission(n_clicks, data_save, *args):
     except Exception as e:
         session.rollback()
         print("Error occurred:", e)
-
-    new_status = f'Problem reported at {report_time}. Reason: {", ".join([f"{labels[i]}: {args[i]}" for i in range(5) if args[i]])}'
-    problem_status_message = data_save.get('problem_reported', [])
-    print(problem_status_message)
-    problem_status_message.append(new_status)
-    data_save['problem_reported'] = problem_status_message
-
-    status_component = html.Div([html.Div(message, className='mb-3') for message in problem_status_message])
-
     # Ensure the return statement matches the number of Output components
-    return False, True, status_component, data_save
+    return [fetch_log_data().to_dict('records')] + ['', '', '', '', '']
 
 # if fixed button is clicked, save the fixed time and inputs in the database and hide the reason form
 @app.callback(
-    Output('reason-form', 'style', allow_duplicate=True),
-    Output('problem-status', 'children', allow_duplicate=True),
-    Output('data-save', 'data',allow_duplicate=True),
+    [Output('log-table', 'data', allow_duplicate=True)]+lost_output,
     Input('fixed-btn', 'n_clicks'),
-    State('data-save', 'data'),
-    lost_state,
+    [State('problem-time', 'value')] + lost_state,
     prevent_initial_call=True
 )
-def handle_fixed_click(n_clicks, data_save, *args):
+def handle_fixed_click(n_clicks, problem_time, *args):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
-    fixed_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    fixed_time = datetime.datetime.strptime(problem_time, '%Y-%m-%dT%H:%M').strftime('%Y-%m-%d %H:%M:%S')
     try:
-        # Correctly using datetime object for timestamp
-        fixed_time = datetime.datetime.now()
-        new_log = Log(timestamp=fixed_time, arrival_time='', shutdown_time='', rsr=False, sequoia=False, toltec=False,
-                      one_mm=False, lost_time_start='', lost_time_end='', lost_time_weather=args[0],
+        new_log = Log(timestamp=current_time(), arrival_time='', shutdown_time='', rsr='', sequoia='', toltec='',
+                      one_mm='', lost_time_start='', lost_time_end=log_time(problem_time), lost_time_weather=args[0],
                       lost_time_icing=args[1],lost_time_power=args[2], lost_time_observers=args[3], lost_time_other=args[4])
         session.add(new_log)
         session.commit()
@@ -250,36 +267,22 @@ def handle_fixed_click(n_clicks, data_save, *args):
         # Rollback in case of exception
         session.rollback()
         print("Error occurred:", e)
-    new_fixed_status = f'Fixed at {fixed_time} {", ".join([f"{labels[i]}: {args[i]}" for i in range(5) if args[i]])}'
-
-    problem_status_message = data_save.get('problem_reported', [])
-
-    problem_status_message.append(new_fixed_status)
-
-    data_save['problem_reported'] = problem_status_message
-    status_component = html.Div([html.Div(message, className='mb-3') for message in problem_status_message])
-    return hide, status_component, data_save
+    return [fetch_log_data().to_dict('records')] + ['', '', '', '', '']
 
 # if leave button is clicked, save the leave time in the database and show the arrival button
 # clear all the selected values
 @app.callback(
-    Output('leave-btn', 'disabled'),
-    Output('leave-status', 'children'),
-    Output('leave-status', 'style'),
-    Output('arrival-btn', 'disabled'),
-    Output('report-problem-btn', 'disabled'),
-    Output('instrument-status-check', 'style'),
-    Output('reason-form', 'style'),
+    Output('log-table', 'data'),
     Input('leave-btn', 'n_clicks'),
+    State('leave-time-input', 'value'),
     prevent_initial_call=True
 )
-def handle_leave_click(n_clicks):
+def handle_leave_click(n_clicks, leave_time):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
-    leave_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     try:
-        new_log = Log(timestamp=leave_time, arrival_time='', shutdown_time=leave_time, rsr=False, sequoia=False, toltec=False,
-                      one_mm=False, lost_time_start='', lost_time_end='', lost_time_weather='', lost_time_icing='',
+        new_log = Log(timestamp=current_time(), arrival_time='', shutdown_time=log_time(leave_time), rsr='', sequoia='', toltec='',
+                      one_mm='', lost_time_start='', lost_time_end='', lost_time_weather='', lost_time_icing='',
                       lost_time_power='', lost_time_observers='', lost_time_other='')
         session.add(new_log)
         session.commit()
@@ -287,18 +290,8 @@ def handle_leave_click(n_clicks):
         # Rollback in case of exception
         session.rollback()
         print("Error occurred:", e)
-    return True, f'Leave at {leave_time}', show, False, True, hide,hide
+    return fetch_log_data().to_dict('records')
 
-
-def fetch_log_data():
-    log_data = session.query(Log).all()
-    log_data = pd.DataFrame([{key: value for key, value in log.__dict__.items() if key != '_sa_instance_state'} for log in log_data])
-    log_data.drop(columns=['id'], inplace=True)
-    return log_data
-def generate_csv(data):
-    desired_order = ['timestamp', 'arrival_time', 'shutdown_time', 'rsr', 'sequoia', 'toltec', 'one_mm', 'lost_time_start', 'lost_time_end', 'lost_time_weather', 'lost_time_icing', 'lost_time_power', 'lost_time_observers', 'lost_time_other']
-    data = data[desired_order]
-    return data.to_csv(index=False, encoding='utf-8-sig')
 
 def save_log_data():
     log_data = fetch_log_data()
@@ -320,22 +313,7 @@ def handle_log_history_click(n1, n2, is_open):
     if n1 is None and n2 is None:
         raise PreventUpdate
     if n1 or n2:
-        return not is_open, dash_table.DataTable(
-            id='log-table',
-            columns=[{'name': col, 'id': col} for col in fetch_log_data().columns],
-            data=fetch_log_data().to_dict('records'),
-            style_table={'overflowX': 'auto', 'maxHeight': '500px'},
-            style_data_conditional=[
-                {
-                    'if': {'row_index': 'odd'},
-                    'backgroundColor': 'rgb(248, 248, 248)'
-                }
-            ],
-            style_header={
-                'backgroundColor': 'rgb(230, 230, 230)',
-                'fontWeight': 'bold'
-            }
-        )
+        return not is_open,
     return no_update, no_update
 
 # click the download log button, download the log db as a csv file
@@ -350,4 +328,4 @@ def handle_download_log_click(n_clicks):
     return dcc.send_file(save_log_data())
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=True, dev_tools_props_check=False)

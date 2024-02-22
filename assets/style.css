@@ -7,8 +7,13 @@
     padding: 20px;               /* Padding inside the div */
     box-shadow: 2px 2px 2px lightgrey;  /* Shadow effect */
     margin-bottom: 20px;         /* Margin at the bottom */
-    height: 300px;               /* Set the height */
+    height: 300px;
     overflow: auto;              /* Add scroll bar if content is too long */
+}
+.card-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;  /* Adjust the space between cards */
 }
 
 .large-button {
