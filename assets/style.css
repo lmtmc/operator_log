@@ -23,7 +23,7 @@
 
 .right-aligned-buttons {
     display: flex;
-    justify-content: flex-end;
+    justify-content: end;
     gap: 10px; /* Adjust the space between buttons */
 }
 
@@ -32,4 +32,70 @@
     justify-content: center;
     align-items: center;
     gap: 50px; /* Adjust the space between buttons */
+}
+
+/* style.css */
+
+.now-button {
+    background-color: #177199;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px; /* Slightly rounded corners */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Subtle shadow */
+    cursor: pointer;
+    transition: background-color 0.3s, box-shadow 0.3s;
+}
+
+.now-button:hover {
+    background-color: #0056b3; /* Darker shade on hover */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* Larger shadow on hover */
+}
+
+.save-button {
+    background-color: #177199;
+    color: white;
+    border: none;
+    padding: 5px 30px;
+    border-radius: 15px;
+    width: 400px;
+    /* Add more styling as needed */
+}
+
+.custom-checklist .form-check-inline {
+    width: 20%;  /* Adjust the width as needed */
+    min-width: 95px; /* Adjust minimum width as needed */
+}
+.download-button {
+    background-color: #177199;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    transition: background-color 0.3s, box-shadow 0.3s;
+}
+
+/* Custom CSS to style the scrollbar area of the DataTable */
+.dash-spreadsheet-container .dash-spreadsheet-inner {
+    background-color: #d3d3d3; /* Darker color for the area around the table */
+}
+
+/* Styling the scrollbar itself */
+::-webkit-scrollbar {
+    width: 10px; /* Adjust the width of the scrollbar */
+}
+
+::-webkit-scrollbar-track {
+    background: #888; /* Darker track */
+}
+
+::-webkit-scrollbar-thumb {
+    background: #555; /* Darker scrollbar thumb */
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #333; /* Even darker when hovered */
 }
