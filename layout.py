@@ -74,7 +74,7 @@ operator_arrive = dbc.Card(
                     ],
                     align='start', justify='start', className='mb-3'
                 ),
-                dbc.Row(dbc.Col(html.Button("Save Operator's Name and arrival Time", id='arrival-btn', n_clicks=0,
+                dbc.Row(dbc.Col(html.Button("SAVE", id='arrival-btn', n_clicks=0,
                                             className='save-button'),width='auto'),align='center', justify='center')
             ]
         )
@@ -87,7 +87,7 @@ shutdown_time = dbc.Card([
     dbc.CardHeader(html.H5("Shutdown"), style=cardheader_style),
     dbc.CardBody([
         shutdown_time_input,
-dbc.Row(dbc.Col(html.Button('Save Shutdown Time', id='shutdown-btn', n_clicks=0, className='save-button'), width='auto'),
+dbc.Row(dbc.Col(html.Button('SAVE', id='shutdown-btn', n_clicks=0, className='save-button'), width='auto'),
         align='center', justify='center', className='mt-3')
     ]),])
 
@@ -112,7 +112,7 @@ instrument_status = dbc.Card(
 
                     ], className='mb-3', align='center', justify='center'
                 ),
-                dbc.Row(dbc.Col(html.Button("Save Instruments' statuses", id='instrument-btn', className='save-button', n_clicks=0),width='auto'), align='center', justify='center')
+                dbc.Row(dbc.Col(html.Button("SAVE", id='instrument-btn', className='save-button', n_clicks=0),width='auto'), align='center', justify='center')
             ]
         ),
     ], className='mb-4'
@@ -144,7 +144,7 @@ problem_form = dbc.Card(
                         ) for label in reasons[1:]
                     ] , align='start', justify='start'
                 ),
-                dbc.Row(dbc.Col(html.Button('Save Problem Time and Reasons', id='problem-btn', n_clicks=0, className='save-button'),
+                dbc.Row(dbc.Col(html.Button('SAVE', id='problem-btn', n_clicks=0, className='save-button'),
                                 width='auto'), align='center', justify='center', className='mt-2')
             ]
         )
@@ -157,7 +157,7 @@ restart_form = dbc.Card(
         dbc.CardBody(
             [
                 dbc.Row(restart_time_input,),
-                dbc.Row(dbc.Col(html.Button('Save Restart Time', id='restart-btn', n_clicks=0, className='save-button'), width='auto'),
+                dbc.Row(dbc.Col(html.Button('SAVE', id='restart-btn', n_clicks=0, className='save-button'), width='auto'),
                         align='center', justify='center', className='mt-3')
             ]
         )
@@ -195,7 +195,7 @@ ObsNum_form = dbc.Card(
                 html.Hr(),
                 dbc.Label('Entry'),
                 dcc.Textarea(id='entry-input', placeholder='Enter entry here', style={'width': '100%', 'height': 30}),
-                dbc.Row(dbc.Col(html.Button('Save Entry', id='entry-btn', n_clicks=0, className='save-button'), width='auto'),
+                dbc.Row(dbc.Col(html.Button('SAVE', id='entry-btn', n_clicks=0, className='save-button'), width='auto'),
                         align='center', justify='center', className='mt-1')
             ]
         )

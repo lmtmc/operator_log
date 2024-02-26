@@ -142,7 +142,7 @@ log_history = dbc.Card(
                                     'backgroundColor': 'rgb(248, 248, 248)'
                                 }
                             ],
-                        ), className='mt-3 ml-5dash-spreadsheet-container ', id='status-container'),
+                        ), className='mt-3 ml-5  ', id='status-container'),
                     ]
                 )
             ], className='mt-5'
