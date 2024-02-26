@@ -28,23 +28,22 @@ python3 app.py
 ```
 The application will then be accessible at http://127.0.0.1:8050.
 
-### Arriving:
+### Arrival:
 
-- Click the "Arrive" button and the arrival time will be recorded in the database.
+- Input operator's name and arrival time then click the "SAVE" button to save the data in the database.
 
 
 
 ### Facility Instruments Ready:
 
-- Click all the ready instrument and the submit button, then the instrument status will be recorded in the database.
+- Check all the ready instrument and then click the "SAVE" button to save the data in the database.
 
 ### Report A Problem:
 
-- Click the "Report A Problem" button and fill the information and click the 'report' button, the problem will be recorded in the database.
-- After the problem is resolved, click the "Fixed" button and the problem will be marked as resolved in the database.
-- If another problem arises, repeat the above steps. 
+- Input the problem fields and then click the "SAVE" button to save the data in the database.
+### Restart:
 
-### Leaving:
-
-- Click the "Leave" button and the leave time will be recorded in the database.
+- Input the restart time and then click the "SAVE" button to save the data in the database.
+### Shutdown:
+- Input the shutdown time and then click the "SAVE" button to save the data in the database.
 
