@@ -335,7 +335,8 @@ def handle_instrument_status_click(n_clicks, *args):
 def handle_entry_click(n_clicks, obsNum, keyword, keyword_checklist, entry):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
-    keywords = keyword+ ', '+', '.join(keyword_checklist) if keyword_checklist else keyword
+    keyword_checklist = ', '.join(keyword_checklist) if keyword_checklist else ''
+    keywords = keyword + ', ' + keyword_checklist if keyword else keyword_checklist
     try:
         new_log = Log(timestamp=current_time(),
                         operator_name='',
@@ -494,4 +495,4 @@ def handle_download_log_click(n_clicks):
     return dcc.send_file(save_log_data())
 
 if __name__ == '__main__':
-    app.run_server(debug=True, dev_tools_props_check=False)
+    app.run_server(debug=True, dev_tools_props_check=False, threaded=False)
