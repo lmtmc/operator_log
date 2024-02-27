@@ -96,10 +96,10 @@ column_mapping = {
     'entry': 'Entry',
     'lost_time': 'Lost Time',
     'restart_time': 'Restart Time',
-    'lost_time_weather': 'Lost Time Weather',
-    'lost_time_icing': 'Lost Time Icing',
-    'lost_time_power': 'Lost Time Power',
-    'lost_time_observers': 'Lost Time Observers',
+    'lost_time_weather': 'Weather',
+    'lost_time_icing': 'Icing',
+    'lost_time_power': 'Power',
+    'lost_time_observers': 'Observers Not Available',
     'lost_time_other': 'Lost Time Other'
 }
 def fetch_log_data():
@@ -116,8 +116,6 @@ def fetch_log_data():
 def generate_csv(data):
     return data.to_csv(index=False, encoding='utf-8-sig')
 
-print('fetch_log_data',fetch_log_data())
-
 columnDefs = [
     {
         "headerName": "Log Details",
@@ -131,35 +129,35 @@ columnDefs = [
     {
         "headerName": "Operation Times",
         "children": [
-            {"field": "arrival_time", },
-            {"field": "shutdown_time", "columnGroupShow": "open"},
-            {"field": "lost_time", "columnGroupShow": "open"},
-            {"field": "restart_time", "columnGroupShow": "open"},
+            {"field": "Arrival Time", },
+            {"field": "Shutdown Time", "columnGroupShow": "open"},
+            {"field": "Lost Time", "columnGroupShow": "open"},
+            {"field": "Restart Time", "columnGroupShow": "open"},
         ],
     },
     {
         "headerName": "Instruments",
         "children": [
-            {"field": "rsr",},
-            {"field": "sequoia", "columnGroupShow": "open"},
-            {"field": "toltec", "columnGroupShow": "open"},
-            {"field": "one_mm", "columnGroupShow": "open"},
+            {"field": "RSR",},
+            {"field": "SEQUOIA", "columnGroupShow": "open"},
+            {"field": "TolTEC", "columnGroupShow": "open"},
+            {"field": "1mm", "columnGroupShow": "open"},
         ],
     },
     {
         "headerName": "Lost Details",
         "children": [
-            {"field": "lost_time_weather"},
-            {"field": "lost_time_icing", "columnGroupShow": "open"},
-            {"field": "lost_time_power", "columnGroupShow": "open"},
-            {"field": "lost_time_observers", "columnGroupShow": "open"},
-            {"field": "lost_time_other", "columnGroupShow": "open"},
+            {"field": "Weather"},
+            {"field": "Icing", "columnGroupShow": "open"},
+            {"field": "Power", "columnGroupShow": "open"},
+            {"field": "Observers Not Available", "columnGroupShow": "open"},
+            {"field": "Others", "columnGroupShow": "open"},
         ],
     },
     {
         "headerName": "Observation",
         "children": [
-            {"field": "obsNum"},
+            {"field": "ObsNum"},
             {"field": "Keyword", "columnGroupShow": "open"},
             {"field": "Entry", "columnGroupShow": "open"},
         ],
@@ -246,6 +244,7 @@ def handle_now_click(arrive_clicks, problem_clicks, shutdown_clicks, restart_cli
 @app.callback(
     Output('log-table', 'rowData', allow_duplicate=True),
     Output('operator-name-input', 'value'),
+    Output('arrival-time-input', 'value', allow_duplicate=True),
     Input('arrival-btn', 'n_clicks'),
     State('operator-name-input', 'value'),
     State('arrival-time-input', 'value'),
@@ -255,7 +254,6 @@ def handle_arrival_click(n_clicks, operator_name, arrival_time):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
     with Session() as session:
-        print('operator_name',operator_name,'arrival_time',arrival_time)
         try:
             new_log = Log(timestamp=current_time(),
                           operator_name=operator_name,
@@ -281,7 +279,7 @@ def handle_arrival_click(n_clicks, operator_name, arrival_time):
             # Rollback in case of exception
             session.rollback()
             print("Error occurred:", e)
-    return fetch_log_data(), ''
+    return fetch_log_data(), '', current_time_input()
 # if instrument status button is clicked, save the instrument status in the database
 @app.callback(
     Output('log-table', 'rowData', allow_duplicate=True),
@@ -298,7 +296,6 @@ def handle_instrument_status_click(n_clicks, *args):
     try:
         # Correctly using datetime object for timestamp
         instrument_statuses = {instruments[i]: 1 if args[i] is not None and args[i][0] == 1 else 0 for i in range(4)}
-        print('instrument_statuses',instrument_statuses)
         new_log = Log(timestamp=current_time(),
                           operator_name='',
                           arrival_time='',
@@ -319,7 +316,6 @@ def handle_instrument_status_click(n_clicks, *args):
                           lost_time_other='')
         session.add(new_log)
         session.commit()
-        print('add instrument status to the database','new_log',new_log)
     except Exception as e:
         # Rollback in case of exception
         session.rollback()
