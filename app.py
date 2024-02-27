@@ -105,18 +105,13 @@ column_mapping = {
 def fetch_log_data():
     log_count = session.query(Log).count()
     if log_count == 0:
-        return pd.DataFrame(columns=data_column)
+        return []
 
     query_result = session.query(Log).order_by(Log.timestamp.desc()).limit(10)
 
     # mapping database column names to the table column names
-
-    # print('query_result',query_result)
     log_data =[{column_mapping[key]: value for key, value in log.__dict__.items() if key in column_mapping}
                             for log in query_result]
-    #log_data = pd.DataFrame([{column_mapping[key]: value for key, value in log.__dict__.items() if key in column_mapping}
-    #                         for log in query_result])
-    # log_data = log_data[data_column]
     return log_data
 def generate_csv(data):
     return data.to_csv(index=False, encoding='utf-8-sig')
