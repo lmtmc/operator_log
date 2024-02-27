@@ -335,6 +335,8 @@ def handle_instrument_status_click(n_clicks, *args):
 def handle_entry_click(n_clicks, obsNum, keyword, keyword_checklist, entry):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
+    if keyword == 'None':
+        keyword = ''
     keyword_checklist = ', '.join(keyword_checklist) if keyword_checklist else ''
     keywords = keyword + ', ' + keyword_checklist if keyword else keyword_checklist
     try:
