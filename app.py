@@ -1,5 +1,3 @@
-# todo revise the database
-# todo add more columns
 import dash
 import dash_auth
 from dash import html, dcc, Input, Output, State, no_update, ctx, Patch, ALL, no_update, dash_table
@@ -9,7 +7,7 @@ import pandas as pd
 import datetime
 from layout import (navbar,operator_arrive, shutdown_time, instrument_status,problem_form,restart_form,
                     ObsNum_form)
-import json
+import dash_ag_grid as dag
 from sqlalchemy import create_engine, ForeignKey, Column, Integer, String, CHAR, DateTime, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, declarative_base
@@ -82,6 +80,28 @@ show = {'display': 'block'}
 data_column = ['ID', 'Timestamp', 'Operator Name', 'Arrival Time', 'Shutdown Time', 'RSR', 'SEQUOIA', 'TolTEC', '1mm',
                  'ObsNum', 'Keyword', 'Entry', 'Lost Time', 'Restart Time', 'Lost Time Weather', 'Lost Time Icing', 'Lost Time Power',
                  'Lost Time Observers', 'Lost Time Other']
+
+column_mapping = {
+    'id': 'ID',
+    'timestamp': 'Timestamp',
+    'operator_name': 'Operator Name',
+    'arrival_time': 'Arrival Time',
+    'shutdown_time': 'Shutdown Time',
+    'rsr': 'RSR',
+    'sequoia': 'SEQUOIA',
+    'toltec': 'TolTEC',
+    'one_mm': '1mm',
+    'obsNum': 'ObsNum',
+    'keywords': 'Keyword',
+    'entry': 'Entry',
+    'lost_time': 'Lost Time',
+    'restart_time': 'Restart Time',
+    'lost_time_weather': 'Lost Time Weather',
+    'lost_time_icing': 'Lost Time Icing',
+    'lost_time_power': 'Lost Time Power',
+    'lost_time_observers': 'Lost Time Observers',
+    'lost_time_other': 'Lost Time Other'
+}
 def fetch_log_data():
     log_count = session.query(Log).count()
     if log_count == 0:
@@ -90,36 +110,66 @@ def fetch_log_data():
     query_result = session.query(Log).order_by(Log.timestamp.desc()).limit(10)
 
     # mapping database column names to the table column names
-    column_mapping = {
-        'id': 'ID',
-        'timestamp': 'Timestamp',
-        'operator_name': 'Operator Name',
-        'arrival_time': 'Arrival Time',
-        'shutdown_time': 'Shutdown Time',
-        'rsr': 'RSR',
-        'sequoia': 'SEQUOIA',
-        'toltec': 'TolTEC',
-        'one_mm': '1mm',
-        'obsNum': 'ObsNum',
-        'keywords': 'Keyword',
-        'entry': 'Entry',
-        'lost_time': 'Lost Time',
-        'restart_time': 'Restart Time',
-        'lost_time_weather': 'Lost Time Weather',
-        'lost_time_icing': 'Lost Time Icing',
-        'lost_time_power': 'Lost Time Power',
-        'lost_time_observers': 'Lost Time Observers',
-        'lost_time_other': 'Lost Time Other'
-    }
+
     # print('query_result',query_result)
-    log_data = pd.DataFrame([{column_mapping[key]: value for key, value in log.__dict__.items() if key in column_mapping}
-                             for log in query_result])
-    log_data = log_data[data_column]
+    log_data =[{column_mapping[key]: value for key, value in log.__dict__.items() if key in column_mapping}
+                            for log in query_result]
+    #log_data = pd.DataFrame([{column_mapping[key]: value for key, value in log.__dict__.items() if key in column_mapping}
+    #                         for log in query_result])
+    # log_data = log_data[data_column]
     return log_data
 def generate_csv(data):
     return data.to_csv(index=False, encoding='utf-8-sig')
 
-columns = [{'name': '1mm' if col == 'one_mm' else col.capitalize(), 'id': col} for col in fetch_log_data().columns]
+print('fetch_log_data',fetch_log_data())
+
+columnDefs = [
+    {
+        "headerName": "Log Details",
+        "children": [
+            {"field": "ID",  "pinned": 'left'},
+            {"field": "Timestamp", "pinned": 'left'},
+            {"field": "Operator Name",  "pinned": 'left'},
+        ]
+    },
+
+    {
+        "headerName": "Operation Times",
+        "children": [
+            {"field": "arrival_time", },
+            {"field": "shutdown_time", "columnGroupShow": "open"},
+            {"field": "lost_time", "columnGroupShow": "open"},
+            {"field": "restart_time", "columnGroupShow": "open"},
+        ],
+    },
+    {
+        "headerName": "Instruments",
+        "children": [
+            {"field": "rsr",},
+            {"field": "sequoia", "columnGroupShow": "open"},
+            {"field": "toltec", "columnGroupShow": "open"},
+            {"field": "one_mm", "columnGroupShow": "open"},
+        ],
+    },
+    {
+        "headerName": "Lost Details",
+        "children": [
+            {"field": "lost_time_weather"},
+            {"field": "lost_time_icing", "columnGroupShow": "open"},
+            {"field": "lost_time_power", "columnGroupShow": "open"},
+            {"field": "lost_time_observers", "columnGroupShow": "open"},
+            {"field": "lost_time_other", "columnGroupShow": "open"},
+        ],
+    },
+    {
+        "headerName": "Observation",
+        "children": [
+            {"field": "obsNum"},
+            {"field": "Keyword", "columnGroupShow": "open"},
+            {"field": "Entry", "columnGroupShow": "open"},
+        ],
+    }
+]
 log_history = dbc.Card(
             [
                 dbc.CardHeader([
@@ -131,21 +181,16 @@ log_history = dbc.Card(
                     ], align='center', justify='center', className='mt-3')]),
                 dbc.CardBody(
                     [
-                        html.Div(dash_table.DataTable(
+                        html.Div(dag.AgGrid(
                             id='log-table',
-                            columns=columns,
-                            data=fetch_log_data().to_dict('records'),
-                            style_table={'overflowX': 'auto', 'height': '350px'},
-                            style_data_conditional=[
-                                {
-                                    'if': {'row_index': 'odd'},
-                                    'backgroundColor': 'rgb(248, 248, 248)'
-                                }
-                            ],
+                            rowData=fetch_log_data(),
+                            columnDefs=columnDefs,
+                            defaultColDef={'filter': True, 'resizable': True},
+                            columnSize='autoSize',
                         ), className='mt-3 ml-5  ', id='status-container'),
                     ]
                 )
-            ], className='mt-5'
+            ], className='mt-5 mb-5'
         ),
 
 def log_time(current_time):
@@ -204,7 +249,7 @@ def handle_now_click(arrive_clicks, problem_clicks, shutdown_clicks, restart_cli
 
 # if arrive button is clicked, save the arrival time in the database and update the status-container
 @app.callback(
-    Output('log-table', 'data', allow_duplicate=True),
+    Output('log-table', 'rowData', allow_duplicate=True),
     Output('operator-name-input', 'value'),
     Input('arrival-btn', 'n_clicks'),
     State('operator-name-input', 'value'),
@@ -241,10 +286,10 @@ def handle_arrival_click(n_clicks, operator_name, arrival_time):
             # Rollback in case of exception
             session.rollback()
             print("Error occurred:", e)
-    return fetch_log_data().to_dict('records'), ''
+    return fetch_log_data(), ''
 # if instrument status button is clicked, save the instrument status in the database
 @app.callback(
-    Output('log-table', 'data', allow_duplicate=True),
+    Output('log-table', 'rowData', allow_duplicate=True),
     Input('instrument-btn', 'n_clicks'),
     State(instruments[0], 'value'),
     State(instruments[1], 'value'),
@@ -284,11 +329,11 @@ def handle_instrument_status_click(n_clicks, *args):
         # Rollback in case of exception
         session.rollback()
         print("Error occurred:", e)
-    return fetch_log_data().to_dict('records')
+    return fetch_log_data()
 
 # if save entry button is clicked, save the obsNum, keywords, and entry in the database
 @app.callback(
-    Output('log-table', 'data', allow_duplicate=True),
+    Output('log-table', 'rowData', allow_duplicate=True),
     Input('entry-btn', 'n_clicks'),
     State('obsnum-input', 'value'),
     State('keyword-input', 'value'),
@@ -325,14 +370,14 @@ def handle_entry_click(n_clicks, obsNum, keyword, keyword_checklist, entry):
         # Rollback in case of exception
         session.rollback()
         print("Error occurred:", e)
-    return fetch_log_data().to_dict('records')
+    return fetch_log_data()
 
 # if report button is clicked, save the reason and report time in the database and enable the fixed button, disable the report button
 labels = ['Weather', 'Icing', 'Power', 'Observers', 'Other']
 lost_state = [State(f"lost-{label.lower()}", 'value') for label in labels]
 lost_output = [Output(f"lost-{label.lower()}", 'value', allow_duplicate=True) for label in labels]
 @app.callback(
-    [Output('log-table', 'data', allow_duplicate=True)]+lost_output,
+    [Output('log-table', 'rowData', allow_duplicate=True)]+lost_output,
     Input('problem-btn', 'n_clicks'),
     [State('problem-log-time', 'value')] + lost_state,
     prevent_initial_call=True
@@ -369,11 +414,11 @@ def handle_problem_submission(n_clicks, problem_time, *args):
         session.rollback()
         print("Error occurred:", e)
     # Ensure the return statement matches the number of Output components
-    return [fetch_log_data().to_dict('records')] + ['', '', '', '', '']
+    return [fetch_log_data()] + ['', '', '', '', '']
 
 # if fixed button is clicked, save the restart time
 @app.callback(
-    [Output('log-table', 'data', allow_duplicate=True)]+lost_output,
+    [Output('log-table', 'rowData', allow_duplicate=True)]+lost_output,
     Input('restart-btn', 'n_clicks'),
     State('restart-time-input', 'value'),
     prevent_initial_call=True
@@ -409,12 +454,12 @@ def handle_restart_click(n_clicks, restart_time):
         # Rollback in case of exception
         session.rollback()
         print("Error occurred:", e)
-    return [fetch_log_data().to_dict('records')] + ['', '', '', '', '']
+    return [fetch_log_data()] + ['', '', '', '', '']
 
 # if shutdown button is clicked, save the shutdown time in the database and show the arrival button
 # clear all the selected values
 @app.callback(
-    Output('log-table', 'data'),
+    Output('log-table', 'rowData'),
     Input('shutdown-btn', 'n_clicks'),
     State('shutdown-time-input', 'value'),
     prevent_initial_call=True
@@ -436,7 +481,7 @@ def handle_shutdown_click(n_clicks, shutdown_time):
         # Rollback in case of exception
         session.rollback()
         print("Error occurred:", e)
-    return fetch_log_data().to_dict('records')
+    return fetch_log_data()
 
 
 def save_log_data():
