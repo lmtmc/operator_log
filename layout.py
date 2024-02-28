@@ -286,7 +286,7 @@ log_history = dbc.Card(
                     [
                         html.Div(dag.AgGrid(
                             id='log-table',
-                            rowData=fetch_log_data(),
+                            rowData=fetch_log_data(10),
                             columnDefs=columnDefs,
                             defaultColDef={'filter': True, 'resizable': True},
                             columnSize='autoSize',

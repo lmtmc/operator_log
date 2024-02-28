@@ -93,7 +93,11 @@ column_mapping = {
     'lost_time_other': 'Others'
 }
 def init_db():
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("Database initialized")
+    except Exception as e:
+        print("Error occurred:", e)
 
 
 def get_session():
@@ -111,10 +115,19 @@ def add_log_entry(**kwargs):
         print("Error occurred:", e)
         return False
 
-def fetch_log_data():
+# if specify a number n, return the last n log entries, otherwise return all log entries
+def fetch_log_data(n):
     session = get_session()
-    query_result = session.query(Log).order_by(Log.timestamp.desc()).limit(10).all()
+    # if there is no data in the database, return an empty list
+    if session.query(Log).count() == 0:
+        return []
+    if n is None:
+        query_result = session.query(Log).all()
+    else:
+        query_result = session.query(Log).order_by(Log.timestamp.desc()).limit(n).all()
     session.close()
     log_data = [{column_mapping[key]: value for key, value in log.__dict__.items() if key in column_mapping}
                 for log in query_result]
     return log_data
+
+init_db()

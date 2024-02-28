@@ -10,7 +10,7 @@ from layout import (navbar,operator_arrive, shutdown_time, instrument_status,pro
                     ObsNum_form, log_history)
 from db import add_log_entry, fetch_log_data,init_db, current_time, current_time_input, log_time
 
-# Initialize the database
+# Initialize the database if it fails to initialize then run python3 db.py first
 init_db()
 
 Valid_Username_Password_Pairs = {
@@ -99,7 +99,7 @@ def update_log(*args):
     if ctx.triggered_id == 'shutdown-btn':
         shutdown_time = log_time(args[9])
         add_log_entry(timestamp=current_time(), shutdown_time=shutdown_time)
-    return fetch_log_data()
+    return fetch_log_data(10)
 
 # if the arrive-now button is clicked, save the current time in the arrival time input
 # if the problem-now button is clicked, save the current time in the problem time input
@@ -197,12 +197,6 @@ def clear_input(n_clicks):
         raise PreventUpdate
     return current_time_input()
 
-
-def save_log_data():
-    log_data = fetch_log_data()
-    log_df = pd.DataFrame(log_data, columns=data_column)
-    return log_df.to_csv(index=False, encoding='utf-8')
-
 # click the download log button, download the log db as a csv file
 @app.callback(
     Output('download-log', 'data'),
@@ -212,9 +206,9 @@ def save_log_data():
 def handle_download_log_click(n_clicks):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
-    log_data = fetch_log_data()
+    log_data = fetch_log_data(None)
     log_df = pd.DataFrame(log_data, columns=data_column)
-    return dcc.send_data_frame(log_df.to_csv, 'log.csv')
+    return dcc.send_data_frame(log_df.to_csv, 'log.csv', index=False)
 
 if __name__ == '__main__':
     app.run_server(debug=True, dev_tools_props_check=False, threaded=False)
