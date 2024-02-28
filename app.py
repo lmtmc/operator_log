@@ -2,200 +2,30 @@ import dash
 import dash_auth
 from dash import html, dcc, Input, Output, State, no_update, ctx, Patch, ALL, no_update, dash_table
 from dash.exceptions import PreventUpdate
+import dash_auth
 import dash_bootstrap_components as dbc
 import pandas as pd
 import datetime
 from layout import (navbar,operator_arrive, shutdown_time, instrument_status,problem_form,restart_form,
-                    ObsNum_form)
-import dash_ag_grid as dag
-from sqlalchemy import create_engine, ForeignKey, Column, Integer, String, CHAR, DateTime, Boolean
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, declarative_base
+                    ObsNum_form, log_history)
+from db import add_log_entry, fetch_log_data,init_db, current_time, current_time_input, log_time
 
-# setup database
-engine = create_engine('sqlite:///log.db', echo=True)
-Session = sessionmaker(bind=engine)
-Base = declarative_base()
-session = Session()
-class Log(Base):
-    __tablename__ = 'log'
-    id = Column(Integer, primary_key=True)
-    timestamp = Column(String)
-    operator_name = Column(String)
-    arrival_time = Column(String)
-    shutdown_time = Column(String)
-    rsr = Column(String)
-    sequoia = Column(String)
-    toltec = Column(String)
-    one_mm = Column(String)
-    obsNum = Column(String)
-    keywords = Column(String)
-    entry = Column(String)
-    lost_time = Column(String)
-    restart_time = Column(String)
-    lost_time_weather = Column(String)
-    lost_time_icing = Column(String)
-    lost_time_power = Column(String)
-    lost_time_observers = Column(String)
-    lost_time_other = Column(String)
+# Initialize the database
+init_db()
 
-
-    def __init__(self, timestamp, operator_name, arrival_time, shutdown_time, rsr, sequoia, toltec, one_mm, obsNum,
-                 keywords, entry,lost_time, restart_time, lost_time_weather, lost_time_icing, lost_time_power,
-                 lost_time_observers, lost_time_other):
-        self.timestamp = timestamp
-        self.operator_name = operator_name
-        self.arrival_time = arrival_time
-        self.shutdown_time = shutdown_time
-        self.rsr = rsr
-        self.sequoia = sequoia
-        self.toltec = toltec
-        self.one_mm = one_mm
-        self.obsNum = obsNum
-        self.keywords = keywords
-        self.entry = entry
-        self.lost_time = lost_time
-        self.restart_time = restart_time
-        self.lost_time_weather = lost_time_weather
-        self.lost_time_icing = lost_time_icing
-        self.lost_time_power = lost_time_power
-        self.lost_time_observers = lost_time_observers
-        self.lost_time_other = lost_time_other
-
-
-    def __repr__(self):
-        return (f'<Log {self.timestamp} {self.operator_name} {self.arrival_time} {self.shutdown_time} {self.rsr} '
-                f'{self.sequoia} {self.toltec} {self.one_mm} {self.obsNum} {self.keywords} {self.entry} {self.lost_time}'
-                f' {self.restart_time} {self.lost_time_weather} {self.lost_time_icing} {self.lost_time_power} '
-                f'{self.lost_time_observers} {self.lost_time_other} >')
-Base.metadata.create_all(bind=engine)
+Valid_Username_Password_Pairs = {
+    'admin': 'admin'
+}
 
 # Initialize the Dash app
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, 'assets/style.css'],
                 prevent_initial_callbacks="initial_duplicate", suppress_callback_exceptions=True)
+auth = dash_auth.BasicAuth(app, Valid_Username_Password_Pairs)
 
-hide = {'display': 'none'}
-show = {'display': 'block'}
 
 data_column = ['ID', 'Timestamp', 'Operator Name', 'Arrival Time', 'Shutdown Time', 'RSR', 'SEQUOIA', 'TolTEC', '1mm',
                  'ObsNum', 'Keyword', 'Entry', 'Lost Time', 'Restart Time', 'Lost Time Weather', 'Lost Time Icing', 'Lost Time Power',
                  'Lost Time Observers', 'Lost Time Other']
-
-column_mapping = {
-    'id': 'ID',
-    'timestamp': 'Timestamp',
-    'operator_name': 'Operator Name',
-    'arrival_time': 'Arrival Time',
-    'shutdown_time': 'Shutdown Time',
-    'rsr': 'RSR',
-    'sequoia': 'SEQUOIA',
-    'toltec': 'TolTEC',
-    'one_mm': '1mm',
-    'obsNum': 'ObsNum',
-    'keywords': 'Keyword',
-    'entry': 'Entry',
-    'lost_time': 'Lost Time',
-    'restart_time': 'Restart Time',
-    'lost_time_weather': 'Weather',
-    'lost_time_icing': 'Icing',
-    'lost_time_power': 'Power',
-    'lost_time_observers': 'Observers Not Available',
-    'lost_time_other': 'Others'
-}
-def fetch_log_data():
-    log_count = session.query(Log).count()
-    if log_count == 0:
-        return []
-
-    query_result = session.query(Log).order_by(Log.timestamp.desc()).limit(10)
-
-    # mapping database column names to the table column names
-    log_data =[{column_mapping[key]: value for key, value in log.__dict__.items() if key in column_mapping}
-                            for log in query_result]
-    return log_data
-def generate_csv(data):
-    return data.to_csv(index=False, encoding='utf-8-sig')
-
-columnDefs = [
-    {
-        "headerName": "Log Details",
-        "children": [
-            {"field": "ID",  "pinned": 'left'},
-            {"field": "Timestamp", "pinned": 'left'},
-            {"field": "Operator Name",  "pinned": 'left'},
-        ]
-    },
-
-    {
-        "headerName": "Operation Times",
-        "children": [
-            {"field": "Arrival Time", },
-            {"field": "Shutdown Time", "columnGroupShow": "open"},
-            {"field": "Lost Time", "columnGroupShow": "open"},
-            {"field": "Restart Time", "columnGroupShow": "open"},
-        ],
-    },
-    {
-        "headerName": "Instruments",
-        "children": [
-            {"field": "RSR",},
-            {"field": "SEQUOIA", "columnGroupShow": "open"},
-            {"field": "TolTEC", "columnGroupShow": "open"},
-            {"field": "1mm", "columnGroupShow": "open"},
-        ],
-    },
-    {
-        "headerName": "Lost Details",
-        "children": [
-            {"field": "Weather"},
-            {"field": "Icing", "columnGroupShow": "open"},
-            {"field": "Power", "columnGroupShow": "open"},
-            {"field": "Observers Not Available", "columnGroupShow": "open"},
-            {"field": "Others", "columnGroupShow": "open"},
-        ],
-    },
-    {
-        "headerName": "Observation",
-        "children": [
-            {"field": "ObsNum"},
-            {"field": "Keyword", "columnGroupShow": "open"},
-            {"field": "Entry", "columnGroupShow": "open"},
-        ],
-    }
-]
-log_history = dbc.Card(
-            [
-                dbc.CardHeader([
-                    dbc.Row([
-                        dbc.Col(html.H5("Log History (10 most recent entries)"), style={'textAlign': 'center'},
-                                ),
-                        dbc.Col(html.Button('Download Log', id='download-button', n_clicks=0, className='download-button'),
-                                width='auto'),
-                    ], align='center', justify='center', className='mt-3')]),
-                dbc.CardBody(
-                    [
-                        html.Div(dag.AgGrid(
-                            id='log-table',
-                            rowData=fetch_log_data(),
-                            columnDefs=columnDefs,
-                            defaultColDef={'filter': True, 'resizable': True},
-                            columnSize='autoSize',
-                        ), className='mt-3 ml-5  ', id='status-container'),
-                    ]
-                )
-            ], className='mt-5 mb-5'
-        ),
-
-def log_time(current_time):
-    if current_time is None:
-        return ''
-    else:
-        return datetime.datetime.strptime(current_time, '%Y-%m-%dT%H:%M').strftime('%Y-%m-%d %H:%M:%S')
-def current_time():
-    return datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-def current_time_input():
-    return datetime.datetime.now().strftime('%Y-%m-%dT%H:%M')
 
 # Layout of the app
 app.layout = dbc.Container([
@@ -212,15 +42,74 @@ app.layout = dbc.Container([
 
 instruments = ['rsr', 'sequoia', 'toltec', '1mm']
 
+@app.callback(
+        Output('log-table', 'rowData'),
+
+    [
+        Input('arrival-btn', 'n_clicks'),#0
+        Input('instrument-btn', 'n_clicks'),#1
+        Input('entry-btn', 'n_clicks'),#2
+        Input('problem-btn', 'n_clicks'),#3
+        Input('restart-btn', 'n_clicks'),#4
+        Input('shutdown-btn', 'n_clicks'),#5
+    ],
+    [
+        State('operator-name-input', 'value'),#6
+        State('arrival-time-input', 'value'),#7
+        State('restart-time-input', 'value'),#8
+        State('shutdown-time-input', 'value'),#9
+    ] + [
+        State(instrument, 'value') for instrument in instruments #10-13
+    ] + [
+        State('obsnum-input', 'value'), #14
+        State('keyword-input', 'value'), #15
+        State('keyword-checklist', 'value'),#16
+        State('entry-input', 'value'),#17
+    ] +
+    [
+        State('problem-log-time', 'value') #18
+    ] + [
+        State(f"lost-{label.lower()}", 'value') for label in ['Weather', 'Icing', 'Power', 'Observers', 'Other']
+    ], #19-23
+    prevent_initial_call=True
+)
+def update_log(*args):
+    if ctx.triggered_id is None:
+        raise PreventUpdate
+    if ctx.triggered_id == 'arrival-btn':
+        operator_name, arrival_time = args[6], log_time(args[7])
+        add_log_entry(timestamp=current_time(), operator_name=operator_name, arrival_time=arrival_time)
+    if ctx.triggered_id == 'instrument-btn':
+        instrument_statuses = {instruments[i]: 1 if args[i+10] is not None and args[i+10][0] == 1 else 0 for i in range(4)}
+        add_log_entry(timestamp=current_time(), rsr=instrument_statuses['rsr'], sequoia=instrument_statuses['sequoia'], toltec=instrument_statuses['toltec'], one_mm=instrument_statuses['1mm'])
+    if ctx.triggered_id == 'entry-btn':
+        obsNum, keyword, keyword_checklist, entry = args[14], args[15], args[16], args[17]
+        keyword_checklist = ', '.join(keyword_checklist) if keyword_checklist else ''
+        if keyword == 'None':
+            keyword = ''
+        keywords = keyword + ', ' + keyword_checklist if keyword else keyword_checklist
+        add_log_entry(timestamp=current_time(), obsNum=obsNum, keywords=keywords, entry=entry)
+    if ctx.triggered_id == 'problem-btn':
+        lost_time = log_time(args[18])
+        lost_time_details = {f'lost_time_{label.lower()}': args[i+19] for i, label in enumerate(['Weather', 'Icing', 'Power', 'Observers', 'Other'])}
+        add_log_entry(timestamp=current_time(), lost_time=lost_time, **lost_time_details)
+    if ctx.triggered_id == 'restart-btn':
+        restart_time = log_time(args[8])
+        add_log_entry(timestamp=current_time(), restart_time=restart_time)
+    if ctx.triggered_id == 'shutdown-btn':
+        shutdown_time = log_time(args[9])
+        add_log_entry(timestamp=current_time(), shutdown_time=shutdown_time)
+    return fetch_log_data()
+
 # if the arrive-now button is clicked, save the current time in the arrival time input
 # if the problem-now button is clicked, save the current time in the problem time input
 # if the shutdown-now button is clicked, save the current time in the shutdown time input
 # if the restart-now button is clicked, save the current time in the restart time input
 @app.callback(
-    Output('arrival-time-input', 'value'),
-    Output('problem-log-time', 'value'),
-    Output('shutdown-time-input', 'value'),
-    Output('restart-time-input', 'value'),
+    Output('arrival-time-input', 'value', allow_duplicate=True),
+    Output('problem-log-time', 'value', allow_duplicate=True),
+    Output('shutdown-time-input', 'value', allow_duplicate=True),
+    Output('restart-time-input', 'value', allow_duplicate=True),
     Input('arrive-now-btn', 'n_clicks'),
     Input('problem-log-now-btn', 'n_clicks'),
     Input('showdown-now-btn', 'n_clicks'),
@@ -239,251 +128,80 @@ def handle_now_click(arrive_clicks, problem_clicks, shutdown_clicks, restart_cli
     if ctx.triggered_id == 'restart-now-btn':
         return no_update, no_update, no_update, current_time_input()
 
-
-# if arrive button is clicked, save the arrival time in the database and update the status-container
+# clear Arrival input filed when save button is clicked
 @app.callback(
-    Output('log-table', 'rowData', allow_duplicate=True),
-    Output('operator-name-input', 'value'),
-    Output('arrival-time-input', 'value', allow_duplicate=True),
+    [
+        Output('operator-name-input', 'value'),
+        Output('arrival-time-input', 'value'),
+    ],
     Input('arrival-btn', 'n_clicks'),
-    State('operator-name-input', 'value'),
-    State('arrival-time-input', 'value'),
-    prevent_initial_call=True
-)
-def handle_arrival_click(n_clicks, operator_name, arrival_time):
+    prevent_initial_call=True)
+def clear_input(n_clicks):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
-    with Session() as session:
-        try:
-            new_log = Log(timestamp=current_time(),
-                          operator_name=operator_name,
-                          arrival_time=log_time(arrival_time),
-                          shutdown_time='',
-                          rsr='',
-                          sequoia='',
-                          toltec='',
-                          one_mm='',
-                          obsNum='',
-                          keywords='',
-                          entry='',
-                          lost_time='',
-                          restart_time='',
-                          lost_time_weather='',
-                          lost_time_icing='',
-                          lost_time_power='',
-                          lost_time_observers='',
-                          lost_time_other='')
-            session.add(new_log)
-            session.commit()
-        except Exception as e:
-            # Rollback in case of exception
-            session.rollback()
-            print("Error occurred:", e)
-    return fetch_log_data(), '', current_time_input()
-# if instrument status button is clicked, save the instrument status in the database
-@app.callback(
-    Output('log-table', 'rowData', allow_duplicate=True),
-    Input('instrument-btn', 'n_clicks'),
-    State(instruments[0], 'value'),
-    State(instruments[1], 'value'),
-    State(instruments[2], 'value'),
-    State(instruments[3], 'value'),
-    prevent_initial_call=True
-)
-def handle_instrument_status_click(n_clicks, *args):
-    if n_clicks is None or n_clicks == 0:
-        raise PreventUpdate
-    try:
-        # Correctly using datetime object for timestamp
-        instrument_statuses = {instruments[i]: 1 if args[i] is not None and args[i][0] == 1 else 0 for i in range(4)}
-        new_log = Log(timestamp=current_time(),
-                          operator_name='',
-                          arrival_time='',
-                          shutdown_time='',
-                          rsr=instrument_statuses['rsr'],
-                          sequoia=instrument_statuses['sequoia'],
-                          toltec=instrument_statuses['toltec'],
-                          one_mm=instrument_statuses['1mm'],
-                          obsNum='',
-                          keywords='',
-                          entry='',
-                          lost_time='',
-                          restart_time='',
-                          lost_time_weather='',
-                          lost_time_icing='',
-                          lost_time_power='',
-                          lost_time_observers='',
-                          lost_time_other='')
-        session.add(new_log)
-        session.commit()
-    except Exception as e:
-        # Rollback in case of exception
-        session.rollback()
-        print("Error occurred:", e)
-    return fetch_log_data()
+    return '', current_time_input()
 
-# if save entry button is clicked, save the obsNum, keywords, and entry in the database
+# clear ObsNum input filed when save button is clicked
 @app.callback(
-    Output('log-table', 'rowData', allow_duplicate=True),
+    [
+        Output('obsnum-input', 'value'),
+        Output('keyword-input', 'value'),
+        Output('keyword-checklist', 'value'),
+        Output('entry-input', 'value'),
+    ],
     Input('entry-btn', 'n_clicks'),
-    State('obsnum-input', 'value'),
-    State('keyword-input', 'value'),
-    State('keyword-checklist', 'value'),
-    State('entry-input', 'value'),
     prevent_initial_call=True
 )
-def handle_entry_click(n_clicks, obsNum, keyword, keyword_checklist, entry):
+def clear_input(n_clicks):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
-    if keyword == 'None':
-        keyword = ''
-    keyword_checklist = ', '.join(keyword_checklist) if keyword_checklist else ''
-    keywords = keyword + ', ' + keyword_checklist if keyword else keyword_checklist
-    try:
-        new_log = Log(timestamp=current_time(),
-                        operator_name='',
-                        arrival_time='',
-                        shutdown_time='',
-                        rsr='',
-                        sequoia='',
-                        toltec='',
-                        one_mm='',
-                        obsNum=obsNum,
-                        keywords=keywords,
-                        entry=entry,
-                        lost_time='',
-                        restart_time='',
-                        lost_time_weather='',
-                        lost_time_icing='',
-                        lost_time_power='',
-                        lost_time_observers='',
-                        lost_time_other='')
-        session.add(new_log)
-        session.commit()
-    except Exception as e:
-        # Rollback in case of exception
-        session.rollback()
-        print("Error occurred:", e)
-    return fetch_log_data()
+    return '', '', '', ''
 
-# if report button is clicked, save the reason and report time in the database and enable the fixed button, disable the report button
-labels = ['Weather', 'Icing', 'Power', 'Observers', 'Other']
-lost_state = [State(f"lost-{label.lower()}", 'value') for label in labels]
-lost_output = [Output(f"lost-{label.lower()}", 'value', allow_duplicate=True) for label in labels]
+# clear Problem input filed when save button is clicked
 @app.callback(
-    [Output('log-table', 'rowData', allow_duplicate=True)]+lost_output,
+    [
+        Output('problem-log-time', 'value'),
+        Output('lost-weather', 'value'),
+        Output('lost-icing', 'value'),
+        Output('lost-power', 'value'),
+        Output('lost-observers', 'value'),
+        Output('lost-other', 'value'),
+    ],
     Input('problem-btn', 'n_clicks'),
-    [State('problem-log-time', 'value')] + lost_state,
     prevent_initial_call=True
 )
-def handle_problem_submission(n_clicks, problem_time, *args):
+def clear_input(n_clicks):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
-    # Format the report time as a string
-    try:
-        new_log = Log(
-            timestamp=current_time(),
-            operator_name='',
-            arrival_time='',
-            shutdown_time='',
-            rsr='',
-            sequoia='',
-            toltec='',
-            one_mm='',
-            obsNum='',
-            keywords='',
-            entry='',
-            lost_time=log_time(problem_time),
-            restart_time='',
-            lost_time_weather=args[0],
-            lost_time_icing=args[1],
-            lost_time_power=args[2],
-            lost_time_observers=args[3],
-            lost_time_other=args[4])
+    return current_time_input(), '', '', '', '', ''
 
-
-        session.add(new_log)
-        session.commit()
-    except Exception as e:
-        session.rollback()
-        print("Error occurred:", e)
-    # Ensure the return statement matches the number of Output components
-    return [fetch_log_data()] + ['', '', '', '', '']
-
-# if fixed button is clicked, save the restart time
+# clear Restart input filed when save button is clicked
 @app.callback(
-    [Output('log-table', 'rowData', allow_duplicate=True)]+lost_output,
+    Output('restart-time-input', 'value'),
     Input('restart-btn', 'n_clicks'),
-    State('restart-time-input', 'value'),
     prevent_initial_call=True
 )
-def handle_restart_click(n_clicks, restart_time):
+def clear_input(n_clicks):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
-    try:
-        new_log = Log(
-            timestamp=current_time(),
-            operator_name='',
-            arrival_time='',
-            shutdown_time='',
-            rsr='',
-            sequoia='',
-            toltec='',
-            one_mm='',
-            obsNum='',
-            keywords='',
-            entry='',
-            lost_time='',
-            restart_time=log_time(restart_time),
-            lost_time_weather='',
-            lost_time_icing='',
-            lost_time_power='',
-            lost_time_observers='',
-            lost_time_other=''
-        )
+    return current_time_input()
 
-        session.add(new_log)
-        session.commit()
-    except Exception as e:
-        # Rollback in case of exception
-        session.rollback()
-        print("Error occurred:", e)
-    return [fetch_log_data()] + ['', '', '', '', '']
-
-# if shutdown button is clicked, save the shutdown time in the database and show the arrival button
-# clear all the selected values
+# clear Shutdown input filed when save button is clicked
 @app.callback(
-    Output('log-table', 'rowData'),
+    Output('shutdown-time-input', 'value'),
     Input('shutdown-btn', 'n_clicks'),
-    State('shutdown-time-input', 'value'),
     prevent_initial_call=True
 )
-def handle_shutdown_click(n_clicks, shutdown_time):
+def clear_input(n_clicks):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
-    try:
-        new_log = Log(timestamp=current_time(),
-                      operator_name='',
-                      arrival_time='',
-                      shutdown_time=log_time(shutdown_time),
-                      rsr='', sequoia='',
-                      toltec='', one_mm='', obsNum='', keywords='', entry='', lost_time='', restart_time='',
-                      lost_time_weather='', lost_time_icing='', lost_time_power='', lost_time_observers='', lost_time_other='')
-        session.add(new_log)
-        session.commit()
-    except Exception as e:
-        # Rollback in case of exception
-        session.rollback()
-        print("Error occurred:", e)
-    return fetch_log_data()
+    return current_time_input()
 
 
 def save_log_data():
     log_data = fetch_log_data()
-    log_csv = generate_csv(log_data)
-    with open('log.csv', 'w') as f:
-        f.write(log_csv)
-    return 'log.csv'
+    log_df = pd.DataFrame(log_data, columns=data_column)
+    return log_df.to_csv(index=False, encoding='utf-8')
 
 # click the download log button, download the log db as a csv file
 @app.callback(
@@ -494,7 +212,9 @@ def save_log_data():
 def handle_download_log_click(n_clicks):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
-    return dcc.send_file(save_log_data())
+    log_data = fetch_log_data()
+    log_df = pd.DataFrame(log_data, columns=data_column)
+    return dcc.send_data_frame(log_df.to_csv, 'log.csv')
 
 if __name__ == '__main__':
-    app.run_server(debug=False, dev_tools_props_check=False, threaded=False)
+    app.run_server(debug=True, dev_tools_props_check=False, threaded=False)

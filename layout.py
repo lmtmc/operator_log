@@ -3,6 +3,8 @@ import dash
 from dash import html, dcc, Input, Output, State
 import dash_auth
 import datetime
+import dash_ag_grid as dag
+from db import fetch_log_data, current_time_input
 lost_reason = ['Bad Weather', 'Scheduled observer team not available',
                'Problem with the telescope (e.g. drive system, active surface, M2, M3, etc.)',
                'Site problem (e.g. power, ice on dish, etc.)', 'Other']
@@ -28,8 +30,11 @@ operator_name_input = html.Div(
 arrival_time_input = html.Div(
     [
         dbc.Label('Arrival Time'),
-        dbc.Row([dbc.Col(dbc.Input(id='arrival-time-input', type='datetime-local', value=datetime.datetime.now().strftime('%Y-%m-%dT%H:%M'))),
-                 dbc.Col(html.Button("Now", id='arrive-now-btn', ))], align='end'),
+        dbc.Row(
+            [
+                dbc.Col(dbc.Input(id='arrival-time-input', type='datetime-local', value=current_time_input())),
+                dbc.Col(html.Button("Now", id='arrive-now-btn', ))
+            ], align='end'),
         dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary")
     ]
 )
@@ -38,7 +43,7 @@ shutdown_time_input = html.Div(
     [
         dbc.Label('Shutdown Time'),
         dbc.Row([dbc.Col(dbc.Input(id='shutdown-time-input', type='datetime-local',
-                                   value=datetime.datetime.now().strftime('%Y-%m-%dT%H:%M'))),
+                                   value=current_time_input())),
                  dbc.Col(html.Button("Now", id='showdown-now-btn', ))], align='end'),
         dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary")
     ])
@@ -47,7 +52,7 @@ problem_log_time_input = html.Div(
     [
         dbc.Label('Log Time'),
         dbc.Row([
-            dbc.Col(dbc.Input(id='problem-log-time', type='datetime-local', value=datetime.datetime.now().strftime('%Y-%m-%dT%H:%M'))),
+            dbc.Col(dbc.Input(id='problem-log-time', type='datetime-local', value=current_time_input())),
             dbc.Col(html.Button("Now", id='problem-log-now-btn', ))], align='end'),
         dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary")
     ]
@@ -57,7 +62,7 @@ restart_time_input = html.Div(
     [
         dbc.Label('Restart Time'),
         dbc.Row([dbc.Col(dbc.Input(id='restart-time-input', type='datetime-local',
-                                   value=datetime.datetime.now().strftime('%Y-%m-%dT%H:%M'))),
+                                   value=current_time_input())),
                  dbc.Col(html.Button("Now", id='restart-now-btn',))], align='end'),
         dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary")
     ])
@@ -221,3 +226,72 @@ ObsNum_form = dbc.Card(
 )
 
 
+columnDefs = [
+    {
+        "headerName": "Log Details",
+        "children": [
+            {"field": "ID",  "pinned": 'left'},
+            {"field": "Timestamp", "pinned": 'left'},
+            {"field": "Operator Name",  "pinned": 'left'},
+        ]
+    },
+
+    {
+        "headerName": "Operation Times",
+        "children": [
+            {"field": "Arrival Time", },
+            {"field": "Shutdown Time", "columnGroupShow": "open"},
+            {"field": "Lost Time", "columnGroupShow": "open"},
+            {"field": "Restart Time", "columnGroupShow": "open"},
+        ],
+    },
+    {
+        "headerName": "Instruments",
+        "children": [
+            {"field": "RSR",},
+            {"field": "SEQUOIA", "columnGroupShow": "open"},
+            {"field": "TolTEC", "columnGroupShow": "open"},
+            {"field": "1mm", "columnGroupShow": "open"},
+        ],
+    },
+    {
+        "headerName": "Lost Details",
+        "children": [
+            {"field": "Weather"},
+            {"field": "Icing", "columnGroupShow": "open"},
+            {"field": "Power", "columnGroupShow": "open"},
+            {"field": "Observers Not Available", "columnGroupShow": "open"},
+            {"field": "Others", "columnGroupShow": "open"},
+        ],
+    },
+    {
+        "headerName": "Observation",
+        "children": [
+            {"field": "ObsNum"},
+            {"field": "Keyword", "columnGroupShow": "open"},
+            {"field": "Entry", "columnGroupShow": "open"},
+        ],
+    }
+]
+log_history = dbc.Card(
+            [
+                dbc.CardHeader([
+                    dbc.Row([
+                        dbc.Col(html.H5("Log History (10 most recent entries)"), style={'textAlign': 'center'},
+                                ),
+                        dbc.Col(html.Button('Download Log', id='download-button', n_clicks=0, className='download-button'),
+                                width='auto'),
+                    ], align='center', justify='center', className='mt-3')]),
+                dbc.CardBody(
+                    [
+                        html.Div(dag.AgGrid(
+                            id='log-table',
+                            rowData=fetch_log_data(),
+                            columnDefs=columnDefs,
+                            defaultColDef={'filter': True, 'resizable': True},
+                            columnSize='autoSize',
+                        ), className='mt-3 ml-5  ', id='status-container'),
+                    ]
+                )
+            ], className='mt-5 mb-5'
+        ),
