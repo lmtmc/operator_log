@@ -100,7 +100,7 @@ column_mapping = {
     'lost_time_icing': 'Icing',
     'lost_time_power': 'Power',
     'lost_time_observers': 'Observers Not Available',
-    'lost_time_other': 'Lost Time Other'
+    'lost_time_other': 'Others'
 }
 def fetch_log_data():
     log_count = session.query(Log).count()
@@ -167,8 +167,8 @@ log_history = dbc.Card(
             [
                 dbc.CardHeader([
                     dbc.Row([
-                        dbc.Col(html.H3("Log History (10 most recent entries)"), style={'textAlign': 'center'},
-                                className='mt-3'),
+                        dbc.Col(html.H5("Log History (10 most recent entries)"), style={'textAlign': 'center'},
+                                ),
                         dbc.Col(html.Button('Download Log', id='download-button', n_clicks=0, className='download-button'),
                                 width='auto'),
                     ], align='center', justify='center', className='mt-3')]),
@@ -497,4 +497,4 @@ def handle_download_log_click(n_clicks):
     return dcc.send_file(save_log_data())
 
 if __name__ == '__main__':
-    app.run_server(debug=True, dev_tools_props_check=False, threaded=False)
+    app.run_server(debug=False, dev_tools_props_check=False, threaded=False)

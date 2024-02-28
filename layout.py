@@ -118,7 +118,7 @@ instrument_status = dbc.Card(
     ], className='mb-4'
 )
 
-reasons = ['Observers', 'Weather', 'Icing', 'Power',  'Other']
+reasons = ['Weather', 'Icing', 'Power',  'Observers', 'Other']
 
 problem_form = dbc.Card(
     [
@@ -130,18 +130,36 @@ problem_form = dbc.Card(
                 dbc.Label('Enter reasons for the problem', ),
                 dbc.Row(
                     [
-                        dbc.Col(
+                    dbc.Col(
                             [
-                                dbc.FormText('Observers not available'),
+                                dbc.FormText(reasons[0]),
                                 dbc.Input(id=f"lost-{reasons[0].lower()}"),
-                            ], width='4')
-                    ] + [
-                        dbc.Col(
-                            [
-                                dbc.FormText(label),
-                                dbc.Input(id=f"lost-{label.lower()}"),
                             ], width='4'
-                        ) for label in reasons[1:]
+                        ),
+                    dbc.Col(
+                            [
+                                dbc.FormText(reasons[1]),
+                                dbc.Input(id=f"lost-{reasons[1].lower()}"),
+                            ], width='4'
+                        ),
+                    dbc.Col(
+                        [
+                            dbc.FormText(reasons[2]),
+                            dbc.Input(id=f"lost-{reasons[2].lower()}"),
+                        ], width='4'
+                    ),
+                    dbc.Col(
+                        [
+                            dbc.FormText('Observers Not Available'),
+                            dbc.Input(id=f"lost-{reasons[3].lower()}"),
+                        ], width='4'
+                    ),
+                    dbc.Col(
+                            [
+                                dbc.FormText(reasons[4]),
+                                dbc.Input(id=f"lost-{reasons[4].lower()}"),
+                            ], width='4'
+                        )
                     ] , align='start', justify='start'
                 ),
                 dbc.Row(dbc.Col(html.Button('SAVE', id='problem-btn', n_clicks=0, className='save-button'),
