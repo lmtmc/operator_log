@@ -40,6 +40,7 @@ app.layout = dbc.Container([
     ]),
 ])
 
+server = app.server
 instruments = ['rsr', 'sequoia', 'toltec', '1mm']
 
 @app.callback(
@@ -211,4 +212,4 @@ def handle_download_log_click(n_clicks):
     return dcc.send_data_frame(log_df.to_csv, 'log.csv', index=False)
 
 if __name__ == '__main__':
-    app.run_server(debug=True, dev_tools_props_check=False, threaded=False)
+    app.run_server(debug=False, dev_tools_props_check=False, threaded=False)
