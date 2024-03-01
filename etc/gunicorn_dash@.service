@@ -1,0 +1,32 @@
+[Unit]
+Description=gunicorn dash daemon %I
+Requires=gunicorn_dash@%i.socket
+After=network.target
+
+[Service]
+Type=notify
+# the specific user that our service will run as
+User=lmtmc
+Group=lmtmc
+# another option for an even more restricted service is
+# DynamicUser=yes
+# see http://0pointer.net/blog/dynamic-users-with-systemd.html
+Environment="DASH_REQUESTS_PATHNAME_PREFIX=/%i/"
+Environment="DASH_ROUTES_PATHNAME_PREFIX=/%i/"
+EnvironmentFile=/home/lmtmc/dasha/%i
+WorkingDirectory=/home/lmtmc/dasha/work/%i
+RuntimeDirectory=gunicorn
+LogsDirectory=gunicorn
+ExecStart=/usr/bin/env ${PYVENV}/bin/gunicorn \
+    --timeout 120 --log-level=${LOGLEVEL_GUNICORN} -w 4 app:server \
+    --bind=unix:/run/gunicorn_dash_%i.sock \
+    --access-logfile=${DASHA_LOGS_DIR}/%i_gunicorn-access.log \
+    --error-logfile=${DASHA_LOGS_DIR}/%i_gunicorn.log \
+    --capture-output --log-level debug
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
