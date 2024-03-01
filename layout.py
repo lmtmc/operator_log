@@ -18,12 +18,14 @@ keyworks = ['Engineering', 'Telescope', 'M1', 'M2', 'M3', 'Actuators', 'TempSens
 
 navbar = html.Div('Telescope Operation Log',
                   style={'textAlign': 'center', 'fontSize': '50px', 'marginBottom': '50px', 'marginTop': '20px',
-                         'fontWeight': 'bold', 'color': 'white', 'backgroundColor': '#177199'})
+                           })
 cardheader_style = {'textAlign': 'center', 'backgroundColor': '#177199', 'color': 'white'}
 operator_name_input = html.Div(
     [
-        dbc.Label('Operator Name'),
-        dbc.Input(id='operator-name-input', placeholder='Enter Operator Name', type='text'),
+        dbc.Row(dbc.Label('Operator Name')),
+        dbc.Row([
+            dbc.Col(dbc.Input(id='operator-name-input', placeholder='Enter Operator Name', type='text'), width=10),
+            dbc.Col(html.Button('x', id='clear-name-btn'))], align='center', justify='end', className='gx-1'),
     ]
 )
 
@@ -34,7 +36,7 @@ arrival_time_input = html.Div(
             [
                 dbc.Col(dbc.Input(id='arrival-time-input', type='datetime-local', value=current_time_input())),
                 dbc.Col(html.Button("Now", id='arrive-now-btn', ))
-            ], align='end'),
+            ], align='center', justify='end', className='gx-1'),
         dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary")
     ]
 )
@@ -44,7 +46,7 @@ shutdown_time_input = html.Div(
         dbc.Label('Shutdown Time'),
         dbc.Row([dbc.Col(dbc.Input(id='shutdown-time-input', type='datetime-local',
                                    value=current_time_input())),
-                 dbc.Col(html.Button("Now", id='showdown-now-btn', ))], align='end'),
+                 dbc.Col(html.Button("Now", id='showdown-now-btn', ))], align='center', justify='end', className='gx-1'),
         dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary")
     ])
 
@@ -53,7 +55,7 @@ problem_log_time_input = html.Div(
         dbc.Label('Log Time'),
         dbc.Row([
             dbc.Col(dbc.Input(id='problem-log-time', type='datetime-local', value=current_time_input())),
-            dbc.Col(html.Button("Now", id='problem-log-now-btn', ))], align='end'),
+            dbc.Col(html.Button("Now", id='problem-log-now-btn', ))], align='center', justify='end', className='gx-1'),
         dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary")
     ]
 )
@@ -63,7 +65,7 @@ restart_time_input = html.Div(
         dbc.Label('Restart Time'),
         dbc.Row([dbc.Col(dbc.Input(id='restart-time-input', type='datetime-local',
                                    value=current_time_input())),
-                 dbc.Col(html.Button("Now", id='restart-now-btn',))], align='end'),
+                 dbc.Col(html.Button("Now", id='restart-now-btn',))], align='center', justify='end', className='gx-1'),
         dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary")
     ])
 
@@ -74,8 +76,8 @@ operator_arrive = dbc.Card(
             [
                 dbc.Row(
                     [
-                        dbc.Col(operator_name_input, width='auto'),
-                        dbc.Col(arrival_time_input),
+                        dbc.Col(operator_name_input,width=5),
+                        dbc.Col(arrival_time_input, width=7),
                     ],
                     align='start', justify='start', className='mb-3'
                 ),
@@ -190,7 +192,7 @@ restart_form = dbc.Card(
 obsNum_input = html.Div(
     [
         dbc.Row([dbc.Col(dbc.Input(id='obsnum-input'),),
-                 dbc.Col(html.Button('Update', id='update-btn'), width='auto'),], ),
+                 dbc.Col(html.Button('Update', id='update-btn'), width='auto'),],align='center', justify='end', className='gx-1' ),
         dbc.FormText("Enter as a list of values ObsNum1, ObsNum2, ... where each ObsNum is a number or a range in the form n1-n2 "
                      "OR push the Update button to get ObsNum from the system", color="secondary"),
     ],

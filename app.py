@@ -14,13 +14,16 @@ from db import add_log_entry, fetch_log_data,init_db, current_time, current_time
 init_db()
 
 Valid_Username_Password_Pairs = {
-    'admin': 'admin'
+    'lmtmc': 'hello'
 }
 
+#prefix = '/'
+prefix = '/operator_log/'
 # Initialize the Dash app
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, 'assets/style.css'],
+app = dash.Dash(__name__, requests_pathname_prefix=prefix, routes_pathname_prefix=prefix,
+                external_stylesheets=[dbc.themes.BOOTSTRAP],
                 prevent_initial_callbacks="initial_duplicate", suppress_callback_exceptions=True)
-auth = dash_auth.BasicAuth(app, Valid_Username_Password_Pairs)
+# auth = dash_auth.BasicAuth(app, Valid_Username_Password_Pairs)
 
 
 data_column = ['ID', 'Timestamp', 'Operator Name', 'Arrival Time', 'Shutdown Time', 'RSR', 'SEQUOIA', 'TolTEC', '1mm',
@@ -77,29 +80,31 @@ instruments = ['rsr', 'sequoia', 'toltec', '1mm']
 def update_log(*args):
     if ctx.triggered_id is None:
         raise PreventUpdate
+    timestamp = current_time()
+    operator_name = args[6]
     if ctx.triggered_id == 'arrival-btn':
-        operator_name, arrival_time = args[6], log_time(args[7])
-        add_log_entry(timestamp=current_time(), operator_name=operator_name, arrival_time=arrival_time)
+        arrival_time = log_time(args[7])
+        add_log_entry(timestamp=timestamp, operator_name=operator_name, arrival_time=arrival_time)
     if ctx.triggered_id == 'instrument-btn':
         instrument_statuses = {instruments[i]: 1 if args[i+10] is not None and args[i+10][0] == 1 else 0 for i in range(4)}
-        add_log_entry(timestamp=current_time(), rsr=instrument_statuses['rsr'], sequoia=instrument_statuses['sequoia'], toltec=instrument_statuses['toltec'], one_mm=instrument_statuses['1mm'])
+        add_log_entry(timestamp=timestamp, operator_name=operator_name, rsr=instrument_statuses['rsr'], sequoia=instrument_statuses['sequoia'], toltec=instrument_statuses['toltec'], one_mm=instrument_statuses['1mm'])
     if ctx.triggered_id == 'entry-btn':
         obsNum, keyword, keyword_checklist, entry = args[14], args[15], args[16], args[17]
         keyword_checklist = ', '.join(keyword_checklist) if keyword_checklist else ''
         if keyword == 'None':
             keyword = ''
         keywords = keyword + ', ' + keyword_checklist if keyword else keyword_checklist
-        add_log_entry(timestamp=current_time(), obsNum=obsNum, keywords=keywords, entry=entry)
+        add_log_entry(timestamp=timestamp, operator_name=operator_name, obsNum=obsNum, keywords=keywords, entry=entry)
     if ctx.triggered_id == 'problem-btn':
         lost_time = log_time(args[18])
         lost_time_details = {f'lost_time_{label.lower()}': args[i+19] for i, label in enumerate(['Weather', 'Icing', 'Power', 'Observers', 'Other'])}
-        add_log_entry(timestamp=current_time(), lost_time=lost_time, **lost_time_details)
+        add_log_entry(timestamp=timestamp, operator_name=operator_name, lost_time=lost_time, **lost_time_details)
     if ctx.triggered_id == 'restart-btn':
         restart_time = log_time(args[8])
-        add_log_entry(timestamp=current_time(), restart_time=restart_time)
+        add_log_entry(timestamp=timestamp, operator_name=operator_name, restart_time=restart_time)
     if ctx.triggered_id == 'shutdown-btn':
         shutdown_time = log_time(args[9])
-        add_log_entry(timestamp=current_time(), shutdown_time=shutdown_time)
+        add_log_entry(timestamp=timestamp, operator_name=operator_name, shutdown_time=shutdown_time)
     return fetch_log_data(10)
 
 # if the arrive-now button is clicked, save the current time in the arrival time input
@@ -131,17 +136,24 @@ def handle_now_click(arrive_clicks, problem_clicks, shutdown_clicks, restart_cli
 
 # clear Arrival input filed when save button is clicked
 @app.callback(
-    [
-        Output('operator-name-input', 'value'),
-        Output('arrival-time-input', 'value'),
-    ],
+    Output('arrival-time-input', 'value'),
     Input('arrival-btn', 'n_clicks'),
     prevent_initial_call=True)
 def clear_input(n_clicks):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
-    return '', current_time_input()
+    return current_time_input()
 
+# clear operator name input when click the clear button
+@app.callback(
+    Output('operator-name-input', 'value'),
+    Input('clear-name-btn', 'n_clicks'),
+    prevent_initial_call=True
+)
+def clear_input(n_clicks):
+    if n_clicks is None or n_clicks == 0:
+        raise PreventUpdate
+    return ''
 # clear ObsNum input filed when save button is clicked
 @app.callback(
     [
