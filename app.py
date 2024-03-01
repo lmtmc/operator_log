@@ -14,11 +14,11 @@ from db import add_log_entry, fetch_log_data,init_db, current_time, current_time
 init_db()
 
 Valid_Username_Password_Pairs = {
-    'admin': 'admin'
+    'lmtmc': 'hello'
 }
-
+prefix = '/operator_log/'
 # Initialize the Dash app
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, 'assets/style.css'],
+app = dash.Dash(__name__, requests_pathname_prefix = prefix, routes_pathname_prefix=prefix, external_stylesheets=[dbc.themes.BOOTSTRAP, 'assets/style.css'],
                 prevent_initial_callbacks="initial_duplicate", suppress_callback_exceptions=True)
 auth = dash_auth.BasicAuth(app, Valid_Username_Password_Pairs)
 
