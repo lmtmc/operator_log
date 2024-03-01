@@ -17,11 +17,9 @@ Valid_Username_Password_Pairs = {
     'lmtmc': 'hello'
 }
 
-#prefix = '/'
 prefix = '/operator_log/'
 # Initialize the Dash app
-app = dash.Dash(__name__, requests_pathname_prefix=prefix, routes_pathname_prefix=prefix,
-                external_stylesheets=[dbc.themes.BOOTSTRAP],
+app = dash.Dash(__name__, requests_pathname_prefix = prefix, routes_pathname_prefix=prefix, external_stylesheets=[dbc.themes.BOOTSTRAP, 'assets/style.css'],
                 prevent_initial_callbacks="initial_duplicate", suppress_callback_exceptions=True)
 # auth = dash_auth.BasicAuth(app, Valid_Username_Password_Pairs)
 
