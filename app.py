@@ -6,44 +6,109 @@ import dash_auth
 import dash_bootstrap_components as dbc
 import pandas as pd
 import datetime
-from layout import (navbar,operator_arrive, shutdown_time, instrument_status,problem_form,restart_form,
-                    ObsNum_form, log_history)
+from layout import (login_page, dash_app_page, navbar)
 from db import add_log_entry, fetch_log_data,init_db, current_time, current_time_input, log_time
 
+import flask
+from flask import redirect, url_for, render_template_string, request
+import os
+from flask_login import login_user, LoginManager, UserMixin, login_required, logout_user, current_user
+server = flask.Flask(__name__)
+server.secret_key = os.urandom(24)
 # Initialize the database if it fails to initialize then run python3 db.py first
 init_db()
 
 Valid_Username_Password_Pairs = {
-    'lmtmc': 'hello'
+    'lmtmc': 'hello', 'lmtmc1': 'hello', 'lmtmc2': 'hello'
 }
 
 prefix = '/operator_log/'
+
 # Initialize the Dash app
-app = dash.Dash(__name__, requests_pathname_prefix = prefix, routes_pathname_prefix=prefix, external_stylesheets=[dbc.themes.BOOTSTRAP, 'assets/style.css'],
+app = dash.Dash(__name__, requests_pathname_prefix = prefix, routes_pathname_prefix=prefix,
+                server = server, title='LMT Operator Log',
+                external_stylesheets=[dbc.themes.BOOTSTRAP],
                 prevent_initial_callbacks="initial_duplicate", suppress_callback_exceptions=True)
 # auth = dash_auth.BasicAuth(app, Valid_Username_Password_Pairs)
 
+# Login manager object will be used to log in/logout users
+login_manager = LoginManager()
+login_manager.init_app(server)
+login_prefix = prefix.lstrip('/') # remove the leading character from the prefix
+login_manager.login_view = f'{login_prefix}login'
+
+# User class for flask-login
+class User(UserMixin):
+    def __init__(self, username):
+        self.id = username
+@login_manager.user_loader
+def load_user(username):
+    return User(username)
 
 data_column = ['ID', 'Timestamp', 'Operator Name', 'Arrival Time', 'Shutdown Time', 'RSR', 'SEQUOIA', 'TolTEC', '1mm',
                  'ObsNum', 'Keyword', 'Entry', 'Lost Time', 'Restart Time', 'Lost Time Weather', 'Lost Time Icing', 'Lost Time Power',
                  'Lost Time Observers', 'Lost Time Other']
 
 # Layout of the app
-app.layout = dbc.Container([
 
+
+
+app.layout = html.Div([
+    dcc.Location(id='url', refresh=False),
     navbar,
-    dbc.Container([
-        dbc.Row([
-            dbc.Col([operator_arrive, instrument_status, ObsNum_form], ),
-            dbc.Col([problem_form, restart_form, shutdown_time]),]),
-        html.Div(log_history),
-        dcc.Download(id='download-log')
-    ]),
+    html.Div(id='page-content'),
 ])
 
-server = app.server
 instruments = ['rsr', 'sequoia', 'toltec', '1mm']
 
+@app.callback(Output('page-content', 'children'),
+              Input('url', 'pathname'),
+              prevent_initial_call=True)
+def display_page(pathname):
+    if not current_user.is_authenticated:
+        return login_page
+    else:
+        return dash_app_page
+
+# callback for the login button
+@app.callback(Output('url', 'pathname', allow_duplicate=True),
+              [Input('login-btn', 'n_clicks')],
+              [State('username', 'value'), State('password', 'value')],
+              prevent_initial_call=True)
+def login(n_clicks, username, password):
+    if username in Valid_Username_Password_Pairs and Valid_Username_Password_Pairs[username] == password:
+        user = User(username)
+        login_user(user)
+        return prefix  # Redirect to the home/dashboard page
+    return no_update  # Stay on the login page if incorrect credentials
+
+@app.callback(Output('url', 'pathname'), [Input('logout-btn', 'n_clicks')],
+              prevent_initial_call=True)
+def logout(n_clicks):
+    if n_clicks > 0:
+        logout_user()
+        return f'{prefix}login'  # Redirect to login page after logout
+    return no_update
+
+# update login name and logout in the navbar
+@app.callback(Output('login-name', 'children'),
+              Output('logout-btn', 'children'),
+              Input('url', 'pathname'),
+              prevent_initial_call=True)
+def update_login_name(pathname):
+    if current_user.is_authenticated:
+        return f"Login As: {current_user.id}", "Logout"
+    return '', ''
+
+# update the operator name when the tab is opened
+@app.callback(Output('operator-name-input', 'value', allow_duplicate=True),
+              Input('tabs', 'active_tab'),
+              )
+def update_operator_name(active_tab):
+    if active_tab == 'tab-arrive':
+        if current_user.is_authenticated:
+            return current_user.id
+    return ''
 @app.callback(
         Output('log-table', 'rowData'),
 
@@ -222,4 +287,4 @@ def handle_download_log_click(n_clicks):
     return dcc.send_data_frame(log_df.to_csv, 'log.csv', index=False)
 
 if __name__ == '__main__':
-    app.run_server(debug=False, dev_tools_props_check=False, threaded=False)
+    app.run_server(debug=True, dev_tools_props_check=False, threaded=False)

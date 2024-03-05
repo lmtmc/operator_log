@@ -9,6 +9,7 @@
     margin-bottom: 20px;         /* Margin at the bottom */
     height: 300px;
     overflow: auto;              /* Add scroll bar if content is too long */
+    width: 80%;
 }
 .card-container {
     display: flex;
@@ -99,3 +100,26 @@
 ::-webkit-scrollbar-thumb:hover {
     background: #333; /* Even darker when hovered */
 }
+
+/*!* Style for the navbar container *!*/
+/*.navbar-container {*/
+/*    background-color: #007BFF; !* Bootstrap primary color *!*/
+/*    padding: 10px 20px;*/
+/*    display: flex;*/
+/*    justify-content: space-between;*/
+/*    align-items: center;*/
+/*    color: white;*/
+/*}*/
+
+/*!* Style for the logout button *!*/
+/*.logout-button {*/
+/*    background-color: #DC3545; !* Bootstrap danger color *!*/
+/*    color: white;*/
+/*    border: none;*/
+/*    padding: 10px;*/
+/*    cursor: pointer;*/
+/*}*/
+
+/*.logout-button:hover {*/
+/*    background-color: #C82333; !* Darker shade for hover effect *!*/
+/*}*/

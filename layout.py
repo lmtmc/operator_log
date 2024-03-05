@@ -16,9 +16,17 @@ red_star_style = {"color": "red", 'marginRight': '5px'}
 keyworks = ['Engineering', 'Telescope', 'M1', 'M2', 'M3', 'Actuators', 'TempSens', 'TolTEC', 'RSR', 'SEQUOIA', '1mm',
             'Pointing', 'Focus', 'Astigmatism', 'Error']
 
-navbar = html.Div('Telescope Operation Log',
-                  style={'textAlign': 'center', 'fontSize': '50px', 'marginBottom': '50px', 'marginTop': '20px',
-                           })
+navbar = html.Div(dbc.NavbarSimple(
+    children = [
+        dbc.NavItem(dbc.NavLink(id='login-name')),
+        dbc.NavItem(dbc.NavLink(id='logout-btn',href='/logout')),
+    ],
+    brand="LMT Operator Log",
+    brand_href="#",
+    color='#177199',
+    dark=True,),style={'marginBottom': '20px', 'backgroundColor': '#177199','width': '85%','marginLeft': 'auto', 'marginRight': 'auto'})
+
+
 cardheader_style = {'textAlign': 'center', 'backgroundColor': '#177199', 'color': 'white'}
 operator_name_input = html.Div(
     [
@@ -71,7 +79,7 @@ restart_time_input = html.Div(
 
 operator_arrive = dbc.Card(
     [
-        dbc.CardHeader(html.H5("Arrival"), style=cardheader_style),
+        # dbc.CardHeader(html.H5("Arrival"), style=cardheader_style),
         dbc.CardBody(
             [
                 dbc.Row(
@@ -91,7 +99,7 @@ operator_arrive = dbc.Card(
 
 
 shutdown_time = dbc.Card([
-    dbc.CardHeader(html.H5("Shutdown"), style=cardheader_style),
+    # dbc.CardHeader(html.H5("Shutdown"), style=cardheader_style),
     dbc.CardBody([
         shutdown_time_input,
 dbc.Row(dbc.Col(html.Button('SAVE', id='shutdown-btn', n_clicks=0, className='save-button'), width='auto'),
@@ -100,7 +108,7 @@ dbc.Row(dbc.Col(html.Button('SAVE', id='shutdown-btn', n_clicks=0, className='sa
 
 instrument_status = dbc.Card(
     [
-        dbc.CardHeader(html.H5("Facility Instruments Ready"), style=cardheader_style),
+        # dbc.CardHeader(html.H5("Facility Instruments Ready"), style=cardheader_style),
         dbc.CardBody(
             [
                 dbc.Row(
@@ -129,7 +137,7 @@ reasons = ['Weather', 'Icing', 'Power',  'Observers', 'Other']
 
 problem_form = dbc.Card(
     [
-        dbc.CardHeader(html.H5("Report A Problem"), style=cardheader_style),
+        # dbc.CardHeader(html.H5("Report A Problem"), style=cardheader_style),
         dbc.CardBody(
             [
                 dbc.Row(problem_log_time_input, className='mb-3'),
@@ -178,7 +186,7 @@ problem_form = dbc.Card(
 
 restart_form = dbc.Card(
     [
-        dbc.CardHeader(html.H5("Restart"), style=cardheader_style),
+        # dbc.CardHeader(html.H5("Restart"), style=cardheader_style),
         dbc.CardBody(
             [
                 dbc.Row(restart_time_input,),
@@ -211,7 +219,7 @@ keywork_input = html.Div(
 
 ObsNum_form = dbc.Card(
     [
-        dbc.CardHeader(html.H5("ObsNum",), style=cardheader_style),
+        # dbc.CardHeader(html.H5("ObsNum",), style=cardheader_style),
         dbc.CardBody(
             [
                 obsNum_input,
@@ -297,3 +305,38 @@ log_history = dbc.Card(
                 )
             ], className='mt-5 mb-5'
         ),
+
+input_select = html.Div(
+    dbc.Tabs([
+        dbc.Tab(operator_arrive, label='Arrival', tab_id='tab-arrive'),
+        dbc.Tab(restart_form, label='Restart'),
+        dbc.Tab(shutdown_time, label='Shutdown'),
+        dbc.Tab(instrument_status, label='Instruments'),
+        dbc.Tab(problem_form, label='Problem'),
+        dbc.Tab(ObsNum_form, label='ObsNum'),
+
+    ], id='tabs')
+)
+# dash_app_page = dbc.Container([
+#                 dbc.Row([
+#                     dbc.Col([operator_arrive, instrument_status, ObsNum_form], ),
+#                     dbc.Col([problem_form, restart_form, shutdown_time]),]),
+#                 html.Div(log_history),
+#                 dcc.Download(id='download-log')
+#             ]),
+
+dash_app_page = dbc.Container([
+    dbc.Row(input_select),
+    # dbc.Row(instrument_status),
+    # dbc.Row(problem_form),
+    # dbc.Row(ObsNum_form),
+
+    html.Div(log_history),
+    dcc.Download(id='download-log')
+])
+
+login_page = dbc.Container([
+            dbc.Row(dbc.Col(dbc.Input(id='username', placeholder='Username',className='mb-3'),width=4), justify='center'),
+            dbc.Row(dbc.Col(dbc.Input(id='password', placeholder='Password', type='password'), width=4), justify='center'),
+            dbc.Row(dbc.Col(dbc.Button('Login', id='login-btn', n_clicks=0),width='auto'), justify='center', className='mt-3'),
+        ])
