@@ -7,9 +7,9 @@
     padding: 20px;               /* Padding inside the div */
     box-shadow: 2px 2px 2px lightgrey;  /* Shadow effect */
     margin-bottom: 20px;         /* Margin at the bottom */
-    height: 300px;
+    height: 520px;
     overflow: auto;              /* Add scroll bar if content is too long */
-    width: 80%;
+    width: 100%;
 }
 .card-container {
     display: flex;

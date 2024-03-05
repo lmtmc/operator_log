@@ -315,22 +315,11 @@ input_select = html.Div(
         dbc.Tab(problem_form, label='Problem'),
         dbc.Tab(ObsNum_form, label='ObsNum'),
 
-    ], id='tabs')
+    ], id='tabs'),className='form-container'
 )
-# dash_app_page = dbc.Container([
-#                 dbc.Row([
-#                     dbc.Col([operator_arrive, instrument_status, ObsNum_form], ),
-#                     dbc.Col([problem_form, restart_form, shutdown_time]),]),
-#                 html.Div(log_history),
-#                 dcc.Download(id='download-log')
-#             ]),
 
 dash_app_page = dbc.Container([
-    dbc.Row(input_select),
-    # dbc.Row(instrument_status),
-    # dbc.Row(problem_form),
-    # dbc.Row(ObsNum_form),
-
+    input_select,
     html.Div(log_history),
     dcc.Download(id='download-log')
 ])
