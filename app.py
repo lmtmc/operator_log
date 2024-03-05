@@ -105,9 +105,8 @@ def update_login_name(pathname):
               Input('tabs', 'active_tab'),
               )
 def update_operator_name(active_tab):
-    if active_tab == 'tab-arrive':
-        if current_user.is_authenticated:
-            return current_user.id
+    if active_tab and current_user.is_authenticated:
+        return current_user.id
     return ''
 @app.callback(
         Output('log-table', 'rowData'),
