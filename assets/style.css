@@ -7,7 +7,7 @@
     padding: 20px;               /* Padding inside the div */
     box-shadow: 2px 2px 2px lightgrey;  /* Shadow effect */
     margin-bottom: 20px;         /* Margin at the bottom */
-    height: 520px;
+    height: 450px;
     overflow: auto;              /* Add scroll bar if content is too long */
     width: 100%;
 }
@@ -101,25 +101,73 @@
     background: #333; /* Even darker when hovered */
 }
 
-/*!* Style for the navbar container *!*/
-/*.navbar-container {*/
-/*    background-color: #007BFF; !* Bootstrap primary color *!*/
-/*    padding: 10px 20px;*/
-/*    display: flex;*/
-/*    justify-content: space-between;*/
-/*    align-items: center;*/
-/*    color: white;*/
-/*}*/
+.login-container {
+    width: 500px;
+    /*height: 800px;*/
+    margin: 100px auto;
+    padding: 50px;
+    border: 1px solid #ccc;
+    border-radius: 15px;
+    /*background-color: #f9f9f9;*/
+}
 
-/*!* Style for the logout button *!*/
-/*.logout-button {*/
-/*    background-color: #DC3545; !* Bootstrap danger color *!*/
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+.settings-container {
+    width: 50%;
+    margin: 100px auto;
+    padding: 20px;
+    /*border: 1px solid #ccc;*/
+    /*border-radius: 5px;*/
+    /*background-color: #f9f9f9;*/
+}
+/*button {*/
+/*    width: 100%;*/
+/*    padding: 10px;*/
+/*    background-color: #007bff;*/
 /*    color: white;*/
 /*    border: none;*/
-/*    padding: 10px;*/
+/*    border-radius: 5px;*/
 /*    cursor: pointer;*/
 /*}*/
+.nav-tabs .nav-link {
+    width: 150px; /* Adjust this value as needed */
+    text-align: center; /* Center the label text */
+}
+/* Target the tabs */
+.nav-tabs {
+    background-color: #cccccc; /* Bootstrap's dark background color */
+}
 
-/*.logout-button:hover {*/
-/*    background-color: #C82333; !* Darker shade for hover effect *!*/
-/*}*/
+/* Target the active tab link */
+.nav-tabs .nav-link.active {
+    background-color: #11557C; /* Slightly lighter than the tab bar for contrast */
+    color: white; /* White text for better readability */
+}
+
+/* Target the tab links */
+.nav-tabs .nav-link {
+    color: #000000; /* Light gray text on dark background for readability */
+}
+
+/* Hover effect for tabs */
+.nav-tabs .nav-link:hover {
+    border-color: transparent;
+}
+
+button:hover {
+    background-color: #0056b3;
+}

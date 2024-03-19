@@ -4,7 +4,11 @@ from dash import html, dcc, Input, Output, State
 import dash_auth
 import datetime
 import dash_ag_grid as dag
-from db import fetch_log_data, current_time_input
+from db import (fetch_log_data, current_time_input, fetch_all_users, add_user,
+                update_user_password, fetch_user_by_username, exist_user, exist_email, validate_user,fetch_all_users)
+
+prefix = 'operator_log'
+
 lost_reason = ['Bad Weather', 'Scheduled observer team not available',
                'Problem with the telescope (e.g. drive system, active surface, M2, M3, etc.)',
                'Site problem (e.g. power, ice on dish, etc.)', 'Other']
@@ -18,13 +22,22 @@ keyworks = ['Engineering', 'Telescope', 'M1', 'M2', 'M3', 'Actuators', 'TempSens
 
 navbar = html.Div(dbc.NavbarSimple(
     children = [
+        dbc.NavItem(dbc.NavLink('Home', href=f'/{prefix}')),
         dbc.NavItem(dbc.NavLink(id='login-name')),
-        dbc.NavItem(dbc.NavLink(id='logout-btn',href='/logout')),
-    ],
+        # dbc.NavItem(dbc.NavLink(id='login-btn',href=f'/{prefix}/login')),
+        dbc.DropdownMenu(
+            children=[
+                dbc.DropdownMenuItem("Settings", id='setting-btn', href=f"/{prefix}/settings"),
+                dbc.DropdownMenuItem("Logout", id='logout-btn', href=f"/{prefix}/logout"),],
+            nav=True, in_navbar=True, right=True, id='user-dropdown'),
+        ],
     brand="LMT Operator Log",
     brand_href="#",
     color='#177199',
-    dark=True,),style={'marginBottom': '20px', 'backgroundColor': '#177199','width': '85%','marginLeft': 'auto', 'marginRight': 'auto'})
+    dark=True,
+    id='navbar'),
+    style={'marginBottom': '20px', 'backgroundColor': '#177199','width': '85%','marginLeft': 'auto', 'marginRight': 'auto'}
+)
 
 
 cardheader_style = {'textAlign': 'center', 'backgroundColor': '#177199', 'color': 'white'}
@@ -235,6 +248,15 @@ ObsNum_form = dbc.Card(
     ], className='mb-3 '
 )
 
+Observers = dbc.Card([
+    dbc.CardBody([
+        dbc.Label('Select Register Observers'),
+        html.Div(dbc.Checklist(id='observers-checklist', inline=True)),
+        dbc.Input(id='observers-name-input', type='text', placeholder='Enter other observers', className='mt-3'),
+        dbc.Row(dbc.Col(html.Button('SAVE', id='observer-btn', n_clicks=0, className='save-button'), width='auto'),
+                        align='center', justify='center', className='mt-3')
+    ]),
+])
 
 columnDefs = [
     {
@@ -243,6 +265,7 @@ columnDefs = [
             {"field": "ID",  "pinned": 'left'},
             {"field": "Timestamp", "pinned": 'left'},
             {"field": "Operator Name",  "pinned": 'left'},
+            {"field": "Observers", "pinned": 'left'},
         ]
     },
 
@@ -287,11 +310,11 @@ log_history = dbc.Card(
             [
                 dbc.CardHeader([
                     dbc.Row([
-                        dbc.Col(html.H5("Log History (10 most recent entries)"), style={'textAlign': 'center'},
-                                ),
+                        dbc.Col(dbc.Button("View Log History ", id="view-btn",className='download-button'),width='auto'),
                         dbc.Col(html.Button('Download Log', id='download-button', n_clicks=0, className='download-button'),
                                 width='auto'),
-                    ], align='center', justify='center', className='mt-3')]),
+                    ],  className='mt-3'),
+                ]),
                 dbc.CardBody(
                     [
                         html.Div(dag.AgGrid(
@@ -299,8 +322,8 @@ log_history = dbc.Card(
                             rowData=fetch_log_data(10),
                             columnDefs=columnDefs,
                             defaultColDef={'filter': True, 'resizable': True},
-                            columnSize='autoSize',
-                        ), className='mt-3 ml-5  ', id='status-container'),
+                            columnSize='sizeToFit',
+                        ), className='mt-3 ml-5  ', id='log-table-div', style={'display': 'none'}),
                     ]
                 )
             ], className='mt-5 mb-5'
@@ -314,6 +337,7 @@ input_select = html.Div(
         dbc.Tab(instrument_status, label='Instruments'),
         dbc.Tab(problem_form, label='Problem'),
         dbc.Tab(ObsNum_form, label='ObsNum'),
+        dbc.Tab(Observers, label='Observers', tab_id='tab-observers'),
 
     ], id='tabs'),className='form-container'
 )
@@ -324,8 +348,161 @@ dash_app_page = dbc.Container([
     dcc.Download(id='download-log')
 ])
 
-login_page = dbc.Container([
-            dbc.Row(dbc.Col(dbc.Input(id='username', placeholder='Username',className='mb-3'),width=4), justify='center'),
-            dbc.Row(dbc.Col(dbc.Input(id='password', placeholder='Password', type='password'), width=4), justify='center'),
-            dbc.Row(dbc.Col(dbc.Button('Login', id='login-btn', n_clicks=0),width='auto'), justify='center', className='mt-3'),
+login_page = html.Div([
+    dbc.Label('Username', className='mt-4', style={'fontWeight': '500'}),
+    dbc.Input(id='username', placeholder='Enter your username', className='mb-4', style={'borderRadius': '20px'}),
+    dbc.Label('Password', style={'fontWeight': '500'}),
+    dbc.Input(id='password', placeholder='Enter your password', type='password', className='mb-4', style={'borderRadius': '20px'}),
+    dbc.Row([
+        dbc.Col(
+            dbc.Button('LOGIN', id='login-btn', n_clicks=0, color='primary', className='mt-2',
+                       style={'width': '100%', 'borderRadius': '20px', 'padding': '10px'}),
+            width=12
+        )
+    ]),
+    html.Br(),
+    html.Div(dbc.Alert(id='login-status', color='dark', is_open=False, dismissable=True,duration=4000,
+                       style={'textAlign': 'center'}) ),
+        ],
+    style={'maxWidth': '400px', 'margin': '40px auto', 'padding': '20px'})
+
+
+register_page = html.Div([
+    dbc.Label('Username', className='mt-4', style={'fontWeight': '500'}),
+    dbc.Input(id='register-username', placeholder='Enter your username', className='mb-4', style={'borderRadius': '20px'}),
+    dbc.Label('Email', style={'fontWeight': '500'}),
+    dbc.Input(id='register-email', placeholder='Enter your email', className='mb-4', style={'borderRadius': '20px'}),
+    dbc.Label('Password', style={'fontWeight': '500'}),
+    dbc.Input(id='register-password', placeholder='Enter your password', type='password', className='mb-4', style={'borderRadius': '20px'}),
+    dbc.Label('Confirm Password', style={'fontWeight': '500'}),
+    dbc.Input(id='register-confirm-password', placeholder='Confirm your password', type='password', className='mb-4', style={'borderRadius': '20px'}),
+    dbc.Row([
+        dbc.Col(
+            dbc.Button('Register', id='register-btn', n_clicks=0, color='primary', className='mt-2',
+                       style={'width': '100%', 'borderRadius': '20px', 'padding': '10px'}),
+            width=12
+        )
+    ]),
+    html.Br(),
+    html.Div(dbc.Alert(id='register-status', color='dark', is_open=False, dismissable=True,
+                       duration=4000, style={'textAlign': 'center'})),
+        ],
+    style={'maxWidth': '400px', 'margin': '40px auto', 'padding': '20px'})
+
+login_tab = html.Div(dbc.Tabs(
+    [
+        dbc.Tab(login_page, label='Login', tab_id='login'),
+        dbc.Tab(register_page, label='REGISTER', tab_id='register'),
+    ], id='login-tabs', active_tab='login', style={'width': '400px', 'margin': 'auto'}
+), className='login-container')
+
+
+setting_page = html.Div([
+    # Center the H2 element
+    html.H2('Reset Account Password', style={'textAlign': 'center'}),
+
+    dbc.Input(id='reset-password', placeholder='New Password', type='password', className='mb-3'),
+    dbc.Input(id='reset-confirm-password', placeholder='Confirm Password', type='password', className='mb-3'),
+    html.Div(dbc.Alert(id='reset-status', color='dark', is_open=False, dismissable=True,), style={'textAlign': 'center'}),
+
+    # Use justify='center' to center the row's content
+    dbc.Row(
+        dbc.Col(
+            dbc.Button('Reset Password', id='reset-btn', n_clicks=0, className='mb-3', color='secondary',
+style={'width': '100%'}
+                       ),
+
+        ),
+        justify='center',  # Center the content of Row
+    ),
+    dbc.Row(
+        dbc.Col(
+            dbc.Button('Cancel', id='back-btn', n_clicks=0, className='mb-3', color='secondary',
+style={'width': '100%'}
+                      ),
+
+        ),
+        justify='center',  # Center the content of Row
+    ),
+], className='login-container')
+
+# add delete or modify the username and password
+user_columnDefs =  [
+            {"field": "ID", "checkboxSelection":{"function": "params.data.Username !== 'admin'"}},
+            {"field": "Username", "editable":{"function": "params.data.Username !== 'admin'"}},
+            {"field": "Email", "editable": {"function": "params.data.Username !== 'admin'"}},
+            {"field": "Is Admin", "editable": {"function": "params.data.Username !== 'admin'"}},
+            {"field": "Created At"},
+            ]
+
+
+user_details = dbc.Card(
+            [
+                dbc.CardHeader([
+                    dbc.Row([
+                        dbc.Col(html.H5("Users Management"), style={'textAlign': 'center'},),
+                    ], align='center', justify='center', className='mt-3')]),
+                dbc.CardBody(
+                    [
+                        html.Div(dag.AgGrid(
+                            id='user-table',
+                            rowData=fetch_all_users(),
+                            columnDefs=user_columnDefs,
+                            defaultColDef={'filter': True, 'resizable': True},
+                            dashGridOptions={'rowSelection':"multiple",
+                                             "suppressRowClickSelection": True, "animateRows": False,
+                                             "undoRedoCellEditing": True,
+                                             "undoRedoCellEditingLimit": 20,
+                                             },
+                            columnSize='autoFill',
+                        ), className='mt-3 ml-5  '),
+                    ]
+                ),
+                dbc.CardFooter(
+                    dbc.Row([
+                        dbc.Col(dbc.Button('Add User', id='add-user-btn', n_clicks=0, className='add-user-button'), width='auto'),
+                        dbc.Col(dbc.Button('Delete User', id='delete-user-btn', n_clicks=0, className='delete-user-button'), width='auto'),
+                    ], className='mt-3')
+                )
+            ], className='mt-5 mb-5'
+        ),
+admin_add_user = dbc.Modal(
+    [
+        dbc.ModalHeader(dbc.Label('Add A New User', style={'textAlign': 'center', 'fontWeight': 'bold'})),
+        dbc.ModalBody(
+            [
+                dbc.Label('Username', className='mt-4', style={'fontWeight': '500'}),
+                dbc.Input(id='add-username', placeholder='Enter username', className='mb-4', style={'borderRadius': '20px'}),
+                dbc.Label('Email', style={'fontWeight': '500'}),
+                dbc.Input(id='add-email', placeholder='Enter email', className='mb-4', style={'borderRadius': '20px'}),
+                dbc.Label('Is Admin', style={'fontWeight': '500'}),
+                dbc.Checklist(id='add-is-admin', options=[{'label': 'Yes', 'value': 1}], switch=True, inline=True, className='mb-4'),
+                dbc.Label('Password', style={'fontWeight': '500'}),
+                dbc.Input(id='add-password', placeholder='Enter password', type='password', className='mb-4', style={'borderRadius': '20px'}),
+                dbc.Label('Confirm Password', style={'fontWeight': '500'}),
+                dbc.Input(id='add-confirm-password', placeholder='Confirm password', type='password', className='mb-4', style={'borderRadius': '20px'}),
+            ]
+        ),
+        dbc.ModalFooter(
+            dbc.Button('Add', id='add-user', n_clicks=0, color='primary', className='mt-2',),
+        ),
+        html.Div(
+            dbc.Alert(id='add-user-status', color='dark', is_open=False, dismissable=True, duration=4000, style={'textAlign': 'center'}),
+            style={'maxWidth': '400px', 'margin': 'auto'}
+        )
+    ],
+    id='add-user-modal',
+    is_open=False,
+    # style={'maxWidth': '400px', 'margin': '100px', 'padding': '20px', 'display': 'flex','justifyContent': 'center'}
+)
+
+admin_page = dbc.Container(
+    [
+        html.Div([
+            dbc.Button('Manage Users', id='manage-users-btn', n_clicks=0, className='mb-3', color='secondary',)]
+                 ),
+
+        html.Div(user_details, style={'display': 'none'}, id='user-details'),
+        html.Div(admin_add_user),
+        html.Div(dbc.Alert(id='admin-status', color='dark', is_open=False, dismissable=True,), style={'textAlign': 'center'}),
         ])
