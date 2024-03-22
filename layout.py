@@ -41,7 +41,7 @@ navbar = html.Div(dbc.NavbarSimple(
 )
 
 cardheader_style = {'textAlign': 'center'}
-cardbody_style = {'height': '250px', 'overflowY': 'auto'}
+cardbody_style = {'height': '325px', 'overflowY': 'auto'}
 cardfooter_style = {'textAlign': 'right'}
 # arrival page 1. observers name component
 observers = html.Div(
@@ -226,8 +226,10 @@ obsNum_input = html.Div(
                  #dbc.Col(html.Button('Update', id='update-btn'), width='auto'),
                  ],align='center', justify='end', className='gx-1'
                 ),
+        # dbc.FormText("Enter as a list of values ObsNum1, ObsNum2, ... where each ObsNum is a number or a range in the form n1-n2 "
+        #              "OR push the Update button to get ObsNum from the system", color="secondary"),
         dbc.FormText("Enter as a list of values ObsNum1, ObsNum2, ... where each ObsNum is a number or a range in the form n1-n2 "
-                     "OR push the Update button to get ObsNum from the system", color="secondary"),
+                     ,color="secondary"),
     ],
 )
 keywork_input = html.Div(
@@ -250,7 +252,6 @@ ObsNum_form = dbc.Card(
                 obsNum_input,
                 html.Br(),
                 keywork_input,
-                html.Br(),
                 dbc.Label('Entry'),
                 dcc.Textarea(id='entry-input', placeholder='Enter entry here', style={'width': '100%', 'height': 30}),
             ],style=cardbody_style
@@ -333,21 +334,32 @@ log_history = html.Div(
 
             ], className='mt-5 mb-5'
         ),
+tab_style = {
+    'borderBottom': '1px solid #d6d6d6',
+    'padding': '30px',
+    'fontWeight': 'bold'
+}
 
+tab_selected_style = {
+    'borderTop': '1px solid #d6d6d6',
+    'borderBottom': '1px solid #d6d6d6',
+    'backgroundColor': '#177199',
+    'color': 'white',
+    'padding': '30px'
+}
 tab_select = html.Div(dbc.Row([
-    dbc.Col([
-        dcc.Tabs(
+    dbc.Col(html.Div(
+        [
+            dcc.Tabs(
             children=[
-            dcc.Tab(label='Arrival', value='tab-arrive'),
-            dcc.Tab(label='Pause or Cancellation', value='tab-problem'),
-            dcc.Tab(label='Resume', value='tab-resume'),
-            dcc.Tab(label='User Note', value='tab-obsnum'),
-            dcc.Tab(label='Shutdown', value='tab-shutdown'),
-            # dcc.Tab(label='Log History', value='tab-log-history'),
-            # dcc.Tab(label='Download Log', value='log-download'),
-        ], id='tabs',vertical=True, value = 'tab-arrive',className='custom-tabs', ),
-    ], width=2, className='tab-container'),
-    dbc.Col(html.Div(id='tab-content'), width=10, className='tab-content-container')
+            dcc.Tab(label='Arrival', value='tab-arrive', style=tab_style, selected_style=tab_selected_style),
+            dcc.Tab(label='Pause or Cancellation', value='tab-problem',style=tab_style, selected_style=tab_selected_style),
+            dcc.Tab(label='Resume', value='tab-resume',style=tab_style, selected_style=tab_selected_style),
+            dcc.Tab(label='User Note', value='tab-obsnum',style=tab_style, selected_style=tab_selected_style),
+            dcc.Tab(label='Shutdown', value='tab-shutdown',style=tab_style, selected_style=tab_selected_style),
+        ], id='tabs',vertical=True, value = 'tab-arrive', ),
+    ], ), width='auto',),
+    dbc.Col(html.Div(id='tab-content'))
 ],))
 
 dash_app_page = dbc.Container([

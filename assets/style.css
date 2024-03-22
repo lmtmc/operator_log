@@ -133,34 +133,18 @@
     /*border-radius: 5px;*/
     /*background-color: #f9f9f9;*/
 }
-/*button {*/
-/*    width: 100%;*/
-/*    padding: 10px;*/
-/*    background-color: #007bff;*/
-/*    color: white;*/
-/*    border: none;*/
-/*    border-radius: 5px;*/
-/*    cursor: pointer;*/
-/*}*/
-.nav-tabs .nav-link {
-    width: 220px; /* Adjust this value as needed */
-    text-align: center; /* Center the label text */
-}
-/* Target the tabs */
-.nav-tabs {
-    background-color: #cccccc; /* Bootstrap's dark background color */
+/* Custom styling for tabs */
+.custom-tabs .tab {
+    background-color: #f0f0f0; /* Light background for unselected tabs */
+    border: solid 1px #d6d6d6;
+    padding: 10px;
 }
 
-/* Target the active tab link */
-.nav-tabs .nav-link.active {
-    background-color: #11557C; /* Slightly lighter than the tab bar for contrast */
-    color: white; /* White text for better readability */
+.custom-tabs .tab--selected {
+    background-color: #404040; /* Darker background for selected tab */
+    color: #ffffff; /* Light text color for better contrast */
 }
 
-/* Target the tab links */
-.nav-tabs .nav-link {
-    color: #000000; /* Light gray text on dark background for readability */
-}
 
 /* Hover effect for tabs */
 .nav-tabs .nav-link:hover {
@@ -171,27 +155,3 @@ button:hover {
     background-color: #0056b3;
 }
 
-.custom-tabs {
-    background-color: #11557C;
-}
-.custom-tabs .tab {
-           display: block;
-            padding: 0px 24px;
-             border-bottom: 1px solid #d6d6d6;
-
-        }
-.tabs-container {
-            float: left;
-            width: 20%;
-            height: 100%;
-        }
-.main-container {
-            display: flex;
-            flex-direction: row;
-            height: 500px;
-        }
-.tab-content-container {
-            float: left;
-            width: 80%;
-            height: 100%;
-        }
