@@ -125,7 +125,7 @@ shutdown_time_input = html.Div(
                     dbc.Row(
                         [
                             dbc.Col(dbc.Input(id='shutdown-time-input', type='datetime-local', value=current_time_input())),
-                            dbc.Col(html.Button("Now", id='showdown-now-btn', ))
+                            dbc.Col(html.Button("Now", id='shutdown-now-btn', ))
                         ], align='center', justify='end', className='gx-1'),
                     dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary")
                 ]

@@ -310,7 +310,7 @@ def save_note(n_clicks, obsNum, keyword, keyword_checklist, entry):
 def save_shutdown(n_clicks, shutdown_time):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
-    add_log_entry(timestamp=current_time(), server_account=current_user.id,shutdown_time=log_time(shutdown_time))
+    add_log_entry(timestamp=current_time(), observer_account=current_user.id,shutdown_time=log_time(shutdown_time))
     return fetch_log_data(10)
 
 # if the arrive-now button is clicked, save the current time in the arrival time input
