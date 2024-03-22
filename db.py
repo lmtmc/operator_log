@@ -36,54 +36,58 @@ class Log(LogBase):
     __tablename__ = 'log'
     id = Column(Integer, primary_key=True)
     timestamp = Column(String, default=current_time)
-    operator_name = Column(String, default='')
+    observer_account = Column(String, default='')
+    other_observers = Column(String, default='')
+    others = Column(String, default='')
     arrival_time = Column(String, default='')
-    shutdown_time = Column(String, default='')
+    toltec = Column(String, default='')
     rsr = Column(String, default='')
     sequoia = Column(String, default='')
-    toltec = Column(String, default='')
     one_mm = Column(String, default='')
+
+    pause_time = Column(String, default='')
+    weather = Column(String, default='')
+    icing = Column(String, default='')
+    power = Column(String, default='')
+    observers_not_available = Column(String, default='')
+    other_reason = Column(String, default='')
+
+    resume_time = Column(String, default='')
+    comment = Column(String, default='')
+
     obsNum = Column(String, default='')
     keywords = Column(String, default='')
     entry = Column(String, default='')
-    lost_time = Column(String, default='')
-    restart_time = Column(String, default='')
-    lost_time_weather = Column(String, default='')
-    lost_time_icing = Column(String, default='')
-    lost_time_power = Column(String, default='')
-    lost_time_observers = Column(String, default='')
-    lost_time_other = Column(String, default='')
-    observers_name = Column(String, default='')
 
-    def __init__(self, timestamp=current_time(), operator_name='', arrival_time='', shutdown_time='', rsr='', sequoia='', toltec='',
-                 one_mm='', obsNum='', keywords='', entry='',lost_time='', restart_time='', lost_time_weather='',
-                 lost_time_icing='', lost_time_power='',lost_time_observers='', lost_time_other='', observers_name=''):
+    shutdown_time = Column(String, default='')
+
+    def __init__(self, timestamp=current_time(), observer_account='', other_observers='', others='', arrival_time='',
+                 toltec='', rsr='', sequoia='', one_mm='', pause_time='', weather='', icing='',
+                 power='', observer_not_available='', other_reason='', resume_time='', comment='', obsNum='', keywords='', entry='', shutdown_time=''):
         self.timestamp = timestamp
-        self.operator_name = operator_name
+        self.observer_account = observer_account
+        self.other_observers = other_observers
+        self.others = others
         self.arrival_time = arrival_time
-        self.shutdown_time = shutdown_time
+        self.toltec = toltec
         self.rsr = rsr
         self.sequoia = sequoia
-        self.toltec = toltec
         self.one_mm = one_mm
+        self.pause_time = pause_time
+        self.weather = weather
+        self.icing = icing
+        self.power = power
+        self.observers_not_available = observer_not_available
+        self.other_reason = other_reason
+        self.resume_time = resume_time
+        self.comment = comment
         self.obsNum = obsNum
         self.keywords = keywords
         self.entry = entry
-        self.lost_time = lost_time
-        self.restart_time = restart_time
-        self.lost_time_weather = lost_time_weather
-        self.lost_time_icing = lost_time_icing
-        self.lost_time_power = lost_time_power
-        self.lost_time_observers = lost_time_observers
-        self.lost_time_other = lost_time_other
-        self.observers_name = observers_name
-
+        self.shutdown_time = shutdown_time
 
     def __repr__(self):
-        return (f'<Log {self.timestamp} {self.operator_name} {self.arrival_time} {self.shutdown_time} {self.rsr} '
-                f'{self.sequoia} {self.toltec} {self.one_mm} {self.obsNum} {self.keywords} {self.entry} {self.lost_time}'
-                f' {self.restart_time} {self.lost_time_weather} {self.lost_time_icing} {self.lost_time_power} '
-                f'{self.lost_time_observers} {self.lost_time_other} {self.observers_name}>')
+        return f'<Log {self.timestamp} {self.observer_account} {self.other_observers} {self.others} {self.arrival_time} {self.toltec} {self.rsr} {self.sequoia} {self.one_mm} {self.pause_time} {self.weather} {self.icing} {self.power} {self.observers_not_available} {self.other_reason} {self.resume_time} {self.comment} {self.obsNum} {self.keywords} {self.entry} {self.shutdown_time} >'
 
 class User(UserBase):
     __tablename__ = 'user'
@@ -111,27 +115,33 @@ class User(UserBase):
     def verify_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+data_column = ["ID", "Timestamp", "Observer Account", "Other Observers", "Other", "Arrival Time",
+               "TolTEC", "RSR", "SEQUOIA", "1mm", "Pause Time", "Weather", "Icing", "Power", "Observers Not Available", "Others",
+               "Resume Time", "Comment", "ObsNum", "Keyword", "Entry", "Shutdown Time"]
+
 column_mapping = {
-    'id': 'ID',
-    'timestamp': 'Timestamp',
-    'operator_name': 'Operator Name',
-    'arrival_time': 'Arrival Time',
-    'shutdown_time': 'Shutdown Time',
-    'rsr': 'RSR',
-    'sequoia': 'SEQUOIA',
-    'toltec': 'TolTEC',
-    'one_mm': '1mm',
-    'obsNum': 'ObsNum',
-    'keywords': 'Keyword',
-    'entry': 'Entry',
-    'lost_time': 'Lost Time',
-    'restart_time': 'Restart Time',
-    'lost_time_weather': 'Weather',
-    'lost_time_icing': 'Icing',
-    'lost_time_power': 'Power',
-    'lost_time_observers': 'Observers Not Available',
-    'lost_time_other': 'Others',
-    'observers_name': 'Observers'
+    'id': data_column[0],
+    'timestamp': data_column[1],
+    'observer_account': data_column[2],
+    'other_observers': data_column[3],
+    'others': data_column[4],
+    'arrival_time': data_column[5],
+    'toltec': data_column[6],
+    'rsr': data_column[7],
+    'sequoia': data_column[8],
+    'one_mm': data_column[9],
+    'pause_time': data_column[10],
+    'weather': data_column[11],
+    'icing': data_column[12],
+    'power': data_column[13],
+    'observers_not_available': data_column[14],
+    'other_reason': data_column[15],
+    'resume_time': data_column[16],
+    'comment': data_column[17],
+    'obsNum': data_column[18],
+    'keywords': data_column[19],
+    'entry': data_column[20],
+    'shutdown_time': data_column[21],
 }
 def init_db():
     try:
@@ -142,24 +152,17 @@ def init_db():
         print("Error occurred:", e)
 
 def add_user(**kwargs):
-    session = UserSession()
-    new_user = User(**kwargs)
-    session.add(new_user)
-    session.commit()
-    print("User added")
-    session.close()
-
-    # with UserSession() as session:
-    #     new_user = User(**kwargs)
-    #     session.add(new_user)
-    #     try:
-    #         session.commit()
-    #         print("User added")
-    #         return True
-    #     except Exception as e:
-    #         session.rollback()
-    #         print("Error occurred:", e)
-    #         return False
+    with UserSession() as session:
+        new_user = User(**kwargs)
+        session.add(new_user)
+        try:
+            session.commit()
+            print("User added")
+            return True
+        except Exception as e:
+            session.rollback()
+            print("Error occurred:", e)
+            return False
 
 user_column_mapping = {
     'id': 'ID',
@@ -231,6 +234,21 @@ def delete_user(username):
             print("Error occurred:", e)
             return False
 
+def update_user(username, email, is_admin, password=None):
+    with UserSession() as session:
+        user = session.query(User).filter_by(username=username).first()
+        if user:
+            user.email = email
+            user.is_admin = is_admin
+            if password:
+                user.password_hash = User.hash_password(password)
+            try:
+                session.commit()
+                return True
+            except Exception as e:
+                session.rollback()
+                print("Error occurred:", e)
+                return False
 def add_log_entry(**kwargs):
     with LogSession() as session:
         new_log = Log(**kwargs)

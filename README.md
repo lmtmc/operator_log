@@ -26,24 +26,40 @@ pip3 install -r requirements.txt
 ```angular2html
 python3 app.py
 ```
-The application will then be accessible at http://127.0.0.1:8050.
+The application will then be accessible at http://127.0.0.1:8050/observer_log.
 
 ### Arrival:
 
-- Input operator's name and arrival time then click the "SAVE" button to save the data in the database.
+- Select observers' names and input other observers
+- Input the arrival time 
+- Check the ready instruments
+- click the "SAVE" button to save the data in the database.
 
 
 
-### Facility Instruments Ready:
+### Pause or Cancellation:
 
-- Check all the ready instrument and then click the "SAVE" button to save the data in the database.
+- Input the cancellation time
+- Enter reasons
+- Click the "SAVE" button to save the data in the database.
 
-### Report A Problem:
+### Resume:
 
-- Input the problem fields and then click the "SAVE" button to save the data in the database.
-### Restart:
+- Input the resume time
+- Input comment
+- Click the "SAVE" button to save the data in the database.
+### User Note:
+- Input ObsNums
+- Input keywords
+- Input Entry
+- Click the "SAVE" button to save the data in the database.
 
-- Input the restart time and then click the "SAVE" button to save the data in the database.
 ### Shutdown:
-- Input the shutdown time and then click the "SAVE" button to save the data in the database.
+- Input the shutdown time 
+- Click the "SAVE" button to save the data in the database.
 
+### View Log History:
+- Click the "View Log History" button to view the 10 most recent log history.
+
+### Download Log:
+- Click the "Download Log" button to download the log history in CSV format.

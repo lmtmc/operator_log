@@ -1,4 +1,5 @@
-#todo revise the log table and save the observers names
+#todo when save arrival clicked, datatable not udpated until refresh
+# Enter comment not working
 import dash
 import dash_auth
 from dash import html, dcc, Input, Output, State, no_update, ctx, Patch, ALL, no_update, dash_table
@@ -8,8 +9,9 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 import datetime
 import time
-from layout import (login_tab, dash_app_page, setting_page,navbar, prefix, admin_page)
-from db import (exist_user, exist_email,delete_user,validate_user, add_user, update_user_password,fetch_user_by_username,
+from layout import (login_page, dash_app_page, setting_page,navbar, prefix, instruments,data_column,
+                    admin_page,observer_arrive, problem_form,resume_form, ObsNum_form,shutdown_time)
+from db import (exist_user, exist_email,delete_user,validate_user, add_user, update_user,update_user_password,fetch_user_by_username,
                 fetch_all_users,add_log_entry, fetch_log_data,init_db,create_admin_user,
                 current_time, current_time_input, log_time)
 import flask
@@ -26,7 +28,7 @@ dash_prefix = f'/{prefix}/'
 
 # Initialize the Dash app
 app = dash.Dash(__name__, requests_pathname_prefix = dash_prefix, routes_pathname_prefix=dash_prefix,
-                server = server, title='LMT Operator Log',
+                server = server, title='LMT Observer Log',
                 external_stylesheets=[dbc.themes.BOOTSTRAP, "https://use.fontawesome.com/releases/v5.8.1/css/all.css"],
                 prevent_initial_callbacks="initial_duplicate", suppress_callback_exceptions=True)
 
@@ -56,22 +58,13 @@ def load_user(username):
         return User(username=user.username, is_admin=user.is_admin)
     return None
 
-data_column = ['ID', 'Timestamp', 'Operator Name', 'Arrival Time', 'Shutdown Time', 'RSR', 'SEQUOIA', 'TolTEC', '1mm',
-                 'ObsNum', 'Keyword', 'Entry', 'Lost Time', 'Restart Time', 'Lost Time Weather', 'Lost Time Icing', 'Lost Time Power',
-                 'Lost Time Observers', 'Lost Time Other']
-
 # Layout of the app
-
-
 
 app.layout = html.Div([
     dcc.Location(id='url', refresh=True),
-    dcc.Store(id='auth-store', storage_type='memory', data={'authenticated': False, 'admin': False}),
-    navbar,
+    html.Div(navbar, className='mb-5'),
     html.Div(id='page-content'),
-])
-
-instruments = ['rsr', 'sequoia', 'toltec', '1mm']
+],)
 
 @app.callback(Output('page-content', 'children'),
               Input('url', 'pathname'),
@@ -84,16 +77,15 @@ def display_page(pathname):
             return "action denied"
     if pathname.endswith(f'/{prefix}/logout'):
         logout_user()
-        return login_tab
+        return login_page
     elif pathname.endswith(f'/{prefix}/settings'):
         if current_user.is_authenticated:
             return setting_page
         else:
-            return login_tab
+            return login_page
     elif current_user.is_authenticated:
-        print('The user is normal user',current_user.is_admin)
         return dash_app_page
-    return login_tab
+    return login_page
 
 
 # callback for the login button
@@ -157,34 +149,6 @@ def logout(n_clicks):
     logout_user()
     return f'/{prefix}/'
 
-# callback for the register button
-@app.callback(Output('url', 'pathname', allow_duplicate=True),
-              Output('register-status','is_open'),
-              Output('register-status', 'children'),
-              Input('register-btn', 'n_clicks'),
-              State('register-username', 'value'),
-              State('register-email', 'value'),
-              State('register-password', 'value'),
-              State('register-confirm-password', 'value'),
-              prevent_initial_call=True)
-def register(n_clicks, username, email, password, confirm_password):
-    if n_clicks is None or n_clicks == 0:
-        raise PreventUpdate
-    if not username or not email or not password or not confirm_password:
-        return no_update, True, 'Please fill in all the fields'
-    if exist_user(username):
-        return no_update, True, 'User already exists'
-    if exist_email(email):
-        return no_update, True, 'Email already exists'
-    if password != confirm_password:
-        return no_update, True, 'Passwords do not match'
-    if username and email and password and confirm_password:
-
-        add_user(username = username, email=email, password=password, is_admin=False, create_at=current_time())
-        login_user(User(username, False))
-        return f'/{prefix}/', True, 'User registered successfully'
-    return f'/{prefix}/register', True, 'Error occurred'
-
 # callback for the settings button
 @app.callback(Output('url', 'pathname', allow_duplicate=True),
                 [Input('settings-btn', 'n_clicks')],
@@ -208,14 +172,38 @@ def show_navbar(pathname):
         return {}
     return {'display': 'none'}
 
-# update the operator name when the tab is opened
-@app.callback(Output('operator-name-input', 'value', allow_duplicate=True),
-              Input('tabs', 'active_tab'),
+# update tab content when the tab is opened
+@app.callback(Output('tab-content', 'children'),
+                Input('tabs', 'value'),
+                )
+def update_tab_content(active_tab):
+    if active_tab is None:
+        raise PreventUpdate
+    if active_tab == 'tab-arrive':
+        return observer_arrive
+    elif active_tab == 'tab-problem':
+        return problem_form
+    elif active_tab == 'tab-resume':
+        return resume_form
+    elif active_tab == 'tab-obsnum':
+        return ObsNum_form
+    elif active_tab == 'tab-shutdown':
+        return shutdown_time
+    return no_update
+
+# update the observer name when the tab is opened
+@app.callback(Output('observer-name-label', 'children'),
+              Output('observers-checklist', 'options'),
+              Input('tabs', 'value'),
               )
-def update_operator_name(active_tab):
-    if active_tab and current_user.is_authenticated:
-        return current_user.id
-    return ''
+def update_observer(active_tab):
+    if active_tab == 'tab-arrive' and current_user.is_authenticated:
+        users = fetch_all_users()
+        # exclude the admin and current user from the observer checklist
+        registered_users = [{'label': user['Username'], 'value': user['Username']}
+                for user in users if user['Username'] != current_user.id and not user['Is Admin']]
+        return f'Welcome, {current_user.id} !', registered_users
+    return no_update
 
 # update the log table when the tab is opened
 @app.callback(Output('log-table', 'rowData', allow_duplicate=True),
@@ -227,86 +215,102 @@ def update_log_table(n_clicks):
         raise PreventUpdate
     return fetch_log_data(10), {'display': 'block'}
 
-# update options for observer checklist when the tab is opened
-@app.callback(Output('observers-checklist', 'options', allow_duplicate=True),
-              Input('tabs', 'active_tab'),
-            prevent_initial_call=True)
-def update_observers_checklist(active_tab):
-    if active_tab =='tab-observers':
-        users = fetch_all_users()
-        # exclude the admin and current user from the observer checklist
-        return [{'label': user['Username'], 'value': user['Username']}
-                for user in users if user['Username'] != current_user.id and not user['Is Admin']]
-    return []
 @app.callback(
-        Output('log-table', 'rowData'),
-
+    Output('log-table', 'rowData', allow_duplicate=True),
+    Input('arrival-btn', 'n_clicks'),
     [
-        Input('arrival-btn', 'n_clicks'),#0
-        Input('instrument-btn', 'n_clicks'),#1
-        Input('entry-btn', 'n_clicks'),#2
-        Input('problem-btn', 'n_clicks'),#3
-        Input('restart-btn', 'n_clicks'),#4
-        Input('shutdown-btn', 'n_clicks'),#5
-        Input('observer-btn', 'n_clicks'),#6
-    ],
-    [
-        State('operator-name-input', 'value'),#7
-        State('arrival-time-input', 'value'),#8
-        State('restart-time-input', 'value'),#9
-        State('shutdown-time-input', 'value'),#10
-    ] + [
-        State(instrument, 'value') for instrument in instruments #11-14
-    ] + [
-        State('obsnum-input', 'value'), #15
-        State('keyword-input', 'value'), #16
-        State('keyword-checklist', 'value'),#17
-        State('entry-input', 'value'),#18
+        State('observers-checklist', 'value'),
+        State('observer-name-input', 'value'),
+        State('arrival-time-input', 'value')
     ] +
     [
-        State('problem-log-time', 'value') #19
-    ] + [
-        State(f"lost-{label.lower()}", 'value') for label in ['Weather', 'Icing', 'Power', 'Observers', 'Other']
-    ] #20-24
-+[
-        State('observers-checklist', 'value'), #25
-        State('observers-name-input', 'value') #26
+        State(instrument, 'value') for instrument in instruments
     ],
     prevent_initial_call=True
 )
-def update_log(*args):
-    if ctx.triggered_id is None:
+def save_arrival(n_clicks, observers_other, others, arrival_time, *instrument_statuses):
+    if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
-    timestamp = current_time()
-    operator_name = args[7]
-    if ctx.triggered_id == 'arrival-btn':
-        arrival_time = log_time(args[8])
-        add_log_entry(timestamp=timestamp, operator_name=operator_name, arrival_time=arrival_time)
-    if ctx.triggered_id == 'instrument-btn':
-        instrument_statuses = {instruments[i]: 1 if args[i+11] is not None and args[i+11][0] == 1 else 0 for i in range(4)}
-        add_log_entry(timestamp=timestamp, operator_name=operator_name, rsr=instrument_statuses['rsr'], sequoia=instrument_statuses['sequoia'], toltec=instrument_statuses['toltec'], one_mm=instrument_statuses['1mm'])
-    if ctx.triggered_id == 'entry-btn':
-        obsNum, keyword, keyword_checklist, entry = args[15], args[16], args[17], args[18]
-        keyword_checklist = ', '.join(keyword_checklist) if keyword_checklist else ''
-        if keyword == 'None':
-            keyword = ''
-        keywords = keyword + ', ' + keyword_checklist if keyword else keyword_checklist
-        add_log_entry(timestamp=timestamp, operator_name=operator_name, obsNum=obsNum, keywords=keywords, entry=entry)
-    if ctx.triggered_id == 'problem-btn':
-        lost_time = log_time(args[19])
-        lost_time_details = {f'lost_time_{label.lower()}': args[i+20] for i, label in enumerate(['Weather', 'Icing', 'Power', 'Observers', 'Other'])}
-        add_log_entry(timestamp=timestamp, operator_name=operator_name, lost_time=lost_time, **lost_time_details)
-    if ctx.triggered_id == 'restart-btn':
-        restart_time = log_time(args[9])
-        add_log_entry(timestamp=timestamp, operator_name=operator_name, restart_time=restart_time)
-    if ctx.triggered_id == 'shutdown-btn':
-        shutdown_time = log_time(args[10])
-        add_log_entry(timestamp=timestamp, operator_name=operator_name, shutdown_time=shutdown_time)
-    if ctx.triggered_id == 'observer-btn':
-        observers_list = ', '.join(args[25]) if args[25] else ''
-        observers_other = args[26] if args[26] else ''
-        observers_name = observers_other + ','+ observers_list if observers_other else observers_list
-        add_log_entry(timestamp=timestamp, operator_name=operator_name, observers_name=observers_name)
+    # join the names of the observers
+    observers_other = ','.join(observers_other) if observers_other else ''
+    instrument_statuses = ["Ready" if status is not None and status[0] == 1 else "Not Ready" for status in instrument_statuses]
+    add_log_entry(timestamp=current_time(), observer_account=current_user.id, other_observers=observers_other,others=others,
+                  arrival_time=log_time(arrival_time), toltec=instrument_statuses[0], rsr=instrument_statuses[1],
+                  sequoia=instrument_statuses[2],one_mm=instrument_statuses[3])
+    return fetch_log_data(10)
+
+# save the problem log when the problem button is clicked
+@app.callback(
+    Output('log-table', 'rowData', allow_duplicate=True),
+    Input('problem-btn', 'n_clicks'),
+    [
+        State('problem-log-time', 'value'),
+        State('lost-weather', 'value'),
+        State('lost-icing', 'value'),
+        State('lost-power', 'value'),
+        State('lost-observers', 'value'),
+        State('lost-other', 'value'),
+    ],
+    prevent_initial_call=True
+)
+def save_problem(n_clicks, problem_time, weather, icing, power, observers, other):
+    if n_clicks is None or n_clicks == 0:
+        raise PreventUpdate
+    add_log_entry(timestamp=current_time(), observer_account=current_user.id,pause_time=log_time(problem_time),
+                  weather=weather, icing=icing, power=power, observer_not_available=observers, other_reason=other)
+    return fetch_log_data(10)
+
+# save the resume log when the resume button is clicked
+@app.callback(
+    Output('log-table', 'rowData', allow_duplicate=True),
+    Input('resume-btn', 'n_clicks'),
+    [
+        State('resume-time-input', 'value'),
+        State('resume-comment', 'value'),
+    ],
+    prevent_initial_call=True
+)
+def save_resume(n_clicks, resume_time, comment):
+    if n_clicks is None or n_clicks == 0:
+        raise PreventUpdate
+    add_log_entry(timestamp=current_time(), observer_account=current_user.id,resume_time=log_time(resume_time), comment=comment)
+    return fetch_log_data(10)
+
+# save user note when the note button is clicked
+@app.callback(
+    Output('log-table', 'rowData', allow_duplicate=True),
+    Input('note-btn', 'n_clicks'),
+    [
+        State('obsnum-input', 'value'),
+        State('keyword-input', 'value'),
+        State('keyword-checklist', 'value'),
+        State('entry-input', 'value'),
+    ],
+    prevent_initial_call=True
+)
+def save_note(n_clicks, obsNum, keyword, keyword_checklist, entry):
+    if n_clicks is None or n_clicks == 0:
+        raise PreventUpdate
+    keyword_checklist = ', '.join(keyword_checklist) if keyword_checklist else ''
+    if keyword == 'None':
+        keyword = ''
+    keywords = keyword + ', ' + keyword_checklist if keyword else keyword_checklist
+    add_log_entry(timestamp=current_time(), observer_account=current_user.id,obsNum=obsNum, keywords=keywords, entry=entry)
+    return fetch_log_data(10)
+
+# save the shutdown log when the shutdown button is clicked
+@app.callback(
+    Output('log-table', 'rowData', allow_duplicate=True),
+    Input('shutdown-btn', 'n_clicks'),
+    [
+        State('shutdown-time-input', 'value'),
+    ],
+    prevent_initial_call=True
+)
+def save_shutdown(n_clicks, shutdown_time):
+    if n_clicks is None or n_clicks == 0:
+        raise PreventUpdate
+    add_log_entry(timestamp=current_time(), server_account=current_user.id,shutdown_time=log_time(shutdown_time))
     return fetch_log_data(10)
 
 # if the arrive-now button is clicked, save the current time in the arrival time input
@@ -315,103 +319,41 @@ def update_log(*args):
 # if the restart-now button is clicked, save the current time in the restart time input
 @app.callback(
     Output('arrival-time-input', 'value', allow_duplicate=True),
-    Output('problem-log-time', 'value', allow_duplicate=True),
-    Output('shutdown-time-input', 'value', allow_duplicate=True),
-    Output('restart-time-input', 'value', allow_duplicate=True),
     Input('arrive-now-btn', 'n_clicks'),
+    prevent_initial_call=True
+)
+def arrival_now(n_clicks):
+    if n_clicks is None or n_clicks == 0:
+        raise PreventUpdate
+    return current_time_input()
+@app.callback(
+    Output('problem-log-time', 'value', allow_duplicate=True),
     Input('problem-log-now-btn', 'n_clicks'),
-    Input('showdown-now-btn', 'n_clicks'),
-    Input('restart-now-btn', 'n_clicks'),
-
     prevent_initial_call=True
 )
-def handle_now_click(arrive_clicks, problem_clicks, shutdown_clicks, restart_clicks):
-    if ctx.triggered_id is None:
+def problem_now(n_clicks):
+    if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
-    if ctx.triggered_id == 'arrive-now-btn':
-        return current_time_input(), no_update, no_update, no_update
-    if ctx.triggered_id == 'problem-log-now-btn':
-        return no_update, current_time_input(), no_update, no_update
-    if ctx.triggered_id == 'showdown-now-btn':
-        return no_update, no_update, current_time_input(), no_update
-    if ctx.triggered_id == 'restart-now-btn':
-        return no_update, no_update, no_update, current_time_input()
-
-# clear Arrival input filed when save button is clicked
+    return current_time_input()
 @app.callback(
-    Output('arrival-time-input', 'value'),
-    Input('arrival-btn', 'n_clicks'),
-    prevent_initial_call=True)
-def clear_input(n_clicks):
+    Output('resume-time-input', 'value', allow_duplicate=True),
+    Input('resume-now-btn', 'n_clicks'),
+    prevent_initial_call=True
+)
+def resume_now(n_clicks):
+    if n_clicks is None or n_clicks == 0:
+        raise PreventUpdate
+    return current_time_input()
+@app.callback(
+    Output('shutdown-time-input', 'value', allow_duplicate=True),
+    Input('shutdown-now-btn', 'n_clicks'),
+    prevent_initial_call=True
+)
+def shutdown_now(n_clicks):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
     return current_time_input()
 
-# clear operator name input when click the clear button
-@app.callback(
-    Output('operator-name-input', 'value'),
-    Input('clear-name-btn', 'n_clicks'),
-    prevent_initial_call=True
-)
-def clear_input(n_clicks):
-    if n_clicks is None or n_clicks == 0:
-        raise PreventUpdate
-    return ''
-# clear ObsNum input filed when save button is clicked
-@app.callback(
-    [
-        Output('obsnum-input', 'value'),
-        Output('keyword-input', 'value'),
-        Output('keyword-checklist', 'value'),
-        Output('entry-input', 'value'),
-    ],
-    Input('entry-btn', 'n_clicks'),
-    prevent_initial_call=True
-)
-def clear_input(n_clicks):
-    if n_clicks is None or n_clicks == 0:
-        raise PreventUpdate
-    return '', '', '', ''
-
-# clear Problem input filed when save button is clicked
-@app.callback(
-    [
-        Output('problem-log-time', 'value'),
-        Output('lost-weather', 'value'),
-        Output('lost-icing', 'value'),
-        Output('lost-power', 'value'),
-        Output('lost-observers', 'value'),
-        Output('lost-other', 'value'),
-    ],
-    Input('problem-btn', 'n_clicks'),
-    prevent_initial_call=True
-)
-def clear_input(n_clicks):
-    if n_clicks is None or n_clicks == 0:
-        raise PreventUpdate
-    return current_time_input(), '', '', '', '', ''
-
-# clear Restart input filed when save button is clicked
-@app.callback(
-    Output('restart-time-input', 'value'),
-    Input('restart-btn', 'n_clicks'),
-    prevent_initial_call=True
-)
-def clear_input(n_clicks):
-    if n_clicks is None or n_clicks == 0:
-        raise PreventUpdate
-    return current_time_input()
-
-# clear Shutdown input filed when save button is clicked
-@app.callback(
-    Output('shutdown-time-input', 'value'),
-    Input('shutdown-btn', 'n_clicks'),
-    prevent_initial_call=True
-)
-def clear_input(n_clicks):
-    if n_clicks is None or n_clicks == 0:
-        raise PreventUpdate
-    return current_time_input()
 
 # click the download log button, download the log db as a csv file
 @app.callback(
@@ -426,6 +368,70 @@ def handle_download_log_click(n_clicks):
     log_df = pd.DataFrame(log_data, columns=data_column)
     return dcc.send_data_frame(log_df.to_csv, 'log.csv', index=False)
 
+# if selected rows are not empty, show the delete and update buttons
+@app.callback(
+    Output('delete-user-btn', 'disabled'),
+    # Output('update-user-btn', 'disabled'),
+    Input('user-table', 'selectedRows'),
+    prevent_initial_call=True
+)
+def show_delete_update_btn(selected_rows):
+    if selected_rows:
+        return False
+    return True
+
+# if update user button is clicked, show the update user modal and load the user data
+# @app.callback(
+#     Output('update-user-modal', 'is_open'),
+#     Output('update-username', 'value'),
+#     Output('update-email', 'value'),
+#     Output('update-is-admin', 'value'),
+#     Output('update-password', 'value'),
+#     Output('update-confirm-password', 'value'),
+#     Input('update-user-btn', 'n_clicks'),
+#     State('user-table', 'selectedRows'),
+#     prevent_initial_call=True
+# )
+# def show_update_user_modal(update_clicks, selected_row):
+#     if ctx.triggered_id is None:
+#         raise PreventUpdate
+#     if ctx.triggered_id == 'update-user-btn' and selected_row:
+#         username = selected_row[0]['Username']
+#         user = fetch_user_by_username(username)
+#         return True, user.username, user.email, user.is_admin, '', ''
+#     return False, '', '', False, '', ''
+#
+# # save the updated user data when save button is clicked
+# @app.callback(
+#     Output('user-table', 'rowData', allow_duplicate=True),
+#     Output('update-user-modal', 'is_open', allow_duplicate=True),
+#     Output('update-user-status', 'is_open', allow_duplicate=True),
+#     Output('update-user-status', 'children', allow_duplicate=True),
+#     Output('update-username', 'value', allow_duplicate=True),
+#     Output('update-email', 'value', allow_duplicate=True),
+#     Output('update-password', 'value', allow_duplicate=True),
+#     Output('update-confirm-password', 'value', allow_duplicate=True),
+#     Input('update-user', 'n_clicks'),
+#     State('update-username', 'value'),
+#     State('update-email', 'value'),
+#     State('update-is-admin', 'value'),
+#     State('update-password', 'value'),
+#     State('update-confirm-password', 'value'),
+#     prevent_initial_call=True)
+# def update_user_callback(update_user_click, username, email, is_admin, password, confirm_password):
+#
+#     if not username or not email:
+#         return no_update, True, True, 'Please fill in Username and email', no_update, no_update, no_update, no_update
+#     if password!= confirm_password:
+#         return no_update, True, True, 'Passwords do not match', no_update, no_update, '', ''
+#     is_admin = True if is_admin else False
+#     if password:
+#         update_user(username=username, email=email, is_admin=is_admin,password=password)
+#     else:
+#         update_user(username=username, email=email, is_admin=is_admin)
+#     return fetch_all_users(), False, True, 'User updated successfully', '', '', '', ''
+
+
 # update user-table when delete user
 @app.callback(
     Output('user-table', 'rowData', allow_duplicate=True),
@@ -434,7 +440,6 @@ def handle_download_log_click(n_clicks):
     prevent_initial_call=True)
 def update_user_table(delete_clicks, selected_row):
     if ctx.triggered_id == 'delete-user-btn' and selected_row:
-        print('selected_row:', selected_row)
         for row in range(0, len(selected_row)):
             username = selected_row[row]['Username']
             delete_user(username)

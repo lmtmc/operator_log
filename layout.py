@@ -4,16 +4,17 @@ from dash import html, dcc, Input, Output, State
 import dash_auth
 import datetime
 import dash_ag_grid as dag
-from db import (fetch_log_data, current_time_input, fetch_all_users, add_user,
+from db import (fetch_log_data, current_time_input, fetch_all_users, add_user, data_column,
                 update_user_password, fetch_user_by_username, exist_user, exist_email, validate_user,fetch_all_users)
 
-prefix = 'operator_log'
+prefix = 'observer_log'
 
 lost_reason = ['Bad Weather', 'Scheduled observer team not available',
                'Problem with the telescope (e.g. drive system, active surface, M2, M3, etc.)',
                'Site problem (e.g. power, ice on dish, etc.)', 'Other']
 
-instruments = ['rsr', 'sequoia', 'toltec', '1mm']
+
+instruments = ['TolTEC', 'RSR', 'SEQUOIA', '1mm']
 
 red_star_style = {"color": "red", 'marginRight': '5px'}
 
@@ -31,189 +32,200 @@ navbar = html.Div(dbc.NavbarSimple(
                 dbc.DropdownMenuItem("Logout", id='logout-btn', href=f"/{prefix}/logout"),],
             nav=True, in_navbar=True, right=True, id='user-dropdown'),
         ],
-    brand="LMT Operator Log",
+    brand="LMT Observer Log",
     brand_href="#",
     color='#177199',
     dark=True,
     id='navbar'),
-    style={'marginBottom': '20px', 'backgroundColor': '#177199','width': '85%','marginLeft': 'auto', 'marginRight': 'auto'}
+    style={'backgroundColor': '#177199'}
 )
 
-
-cardheader_style = {'textAlign': 'center', 'backgroundColor': '#177199', 'color': 'white'}
-operator_name_input = html.Div(
+cardheader_style = {'textAlign': 'center'}
+cardbody_style = {'height': '250px', 'overflowY': 'auto'}
+cardfooter_style = {'textAlign': 'right'}
+# arrival page 1. observers name component
+observers = html.Div(
     [
-        dbc.Row(dbc.Label('Operator Name')),
-        dbc.Row([
-            dbc.Col(dbc.Input(id='operator-name-input', placeholder='Enter Operator Name', type='text'), width=10),
-            dbc.Col(html.Button('x', id='clear-name-btn'))], align='center', justify='end', className='gx-1'),
-    ]
-)
+            dbc.Row([
+                dbc.Col(dbc.Label('Select Observers'), width=2),
+                dbc.Col([
+                    dbc.Row(
+                        [
+                            dbc.Col(dbc.Checklist(id='observers-checklist',inline=True,), width='auto'),
+                            dbc.Col(dbc.Input(id='observer-name-input', type='text', placeholder='Enter additional observer',
+                                    ), width='auto')
+                        ], align='center'
+                    ),
+                ]),
+            ], className='mt-3'),
+])
 
+# arrival page 2. arrival time component
 arrival_time_input = html.Div(
     [
-        dbc.Label('Arrival Time'),
+        dbc.Row([
+            dbc.Col(dbc.Label('Arrival Time'), width=2),
+            dbc.Col(
+                [
+                    dbc.Row(
+                        [
+                            dbc.Col(dbc.Input(id='arrival-time-input', type='datetime-local', value=current_time_input())),
+                            dbc.Col(html.Button("Now", id='arrive-now-btn', ))
+                        ], align='center', justify='end', className='gx-1'),
+                    dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary")
+                ]
+            )]),
+    ]
+)
+
+# 3. arrival page 3 instrument status component
+instrument_status = html.Div(
+    [
         dbc.Row(
             [
-                dbc.Col(dbc.Input(id='arrival-time-input', type='datetime-local', value=current_time_input())),
-                dbc.Col(html.Button("Now", id='arrive-now-btn', ))
-            ], align='center', justify='end', className='gx-1'),
-        dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary")
-    ]
+                dbc.Col(dbc.Label('Instrument Status'), width=2),
+                dbc.Col(
+                    dbc.Row(
+                        [
+                            dbc.Col(dbc.Checklist(
+                                id=instrument,
+                                options=[{'label': f'{instrument} ready', 'value': 1}],
+                                inline=True
+                            )) for instrument in instruments
+                        ], className='mb-3', align='center', justify='center'
+                    ),
+                )
+            ]
+        ),
+    ],
+)
+
+observer_arrive = dbc.Card([
+        dbc.CardHeader(html.H5(id='observer-name-label', style=cardheader_style)),
+        dbc.CardBody(
+            [
+                observers,
+                html.Br(),
+                arrival_time_input,
+                html.Br(),
+                instrument_status,
+            ],style=cardbody_style
+        ),
+    dbc.CardFooter(
+        html.Div(html.Button("SAVE", id='arrival-btn', n_clicks=0,className='save-button'),style=cardfooter_style)
+    )],
 )
 
 shutdown_time_input = html.Div(
     [
-        dbc.Label('Shutdown Time'),
-        dbc.Row([dbc.Col(dbc.Input(id='shutdown-time-input', type='datetime-local',
-                                   value=current_time_input())),
-                 dbc.Col(html.Button("Now", id='showdown-now-btn', ))], align='center', justify='end', className='gx-1'),
-        dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary")
-    ])
-
-problem_log_time_input = html.Div(
-    [
-        dbc.Label('Log Time'),
         dbc.Row([
-            dbc.Col(dbc.Input(id='problem-log-time', type='datetime-local', value=current_time_input())),
-            dbc.Col(html.Button("Now", id='problem-log-now-btn', ))], align='center', justify='end', className='gx-1'),
-        dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary")
+            dbc.Col(dbc.Label('Shutdown Time',), width=2),
+            dbc.Col(
+                [
+                    dbc.Row(
+                        [
+                            dbc.Col(dbc.Input(id='shutdown-time-input', type='datetime-local', value=current_time_input())),
+                            dbc.Col(html.Button("Now", id='showdown-now-btn', ))
+                        ], align='center', justify='end', className='gx-1'),
+                    dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary")
+                ]
+            )],),
     ]
 )
-
-restart_time_input = html.Div(
+problem_log_time_input = html.Div(
     [
-        dbc.Label('Restart Time'),
-        dbc.Row([dbc.Col(dbc.Input(id='restart-time-input', type='datetime-local',
-                                   value=current_time_input())),
-                 dbc.Col(html.Button("Now", id='restart-now-btn',))], align='center', justify='end', className='gx-1'),
-        dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary")
-    ])
-
-operator_arrive = dbc.Card(
+        dbc.Row([
+            dbc.Col(dbc.Label('Log Time',), width=2),
+            dbc.Col(
+                [
+                    dbc.Row(
+                        [
+                            dbc.Col(dbc.Input(id='problem-log-time', type='datetime-local', value=current_time_input())),
+                            dbc.Col(html.Button("Now", id='problem-log-now-btn', ))
+                        ], align='center', justify='end', className='gx-1'),
+                    dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary")
+                ]
+            )],),
+    ]
+)
+resume_time_input = html.Div(
     [
-        # dbc.CardHeader(html.H5("Arrival"), style=cardheader_style),
-        dbc.CardBody(
-            [
-                dbc.Row(
-                    [
-                        dbc.Col(operator_name_input,width=5),
-                        dbc.Col(arrival_time_input, width=7),
-                    ],
-                    align='start', justify='start', className='mb-3'
-                ),
-                dbc.Row(dbc.Col(html.Button("SAVE", id='arrival-btn', n_clicks=0,
-                                            className='save-button'),width='auto'),align='center', justify='center')
-            ]
-        )
-    ],
-    className='mb-4'
+        dbc.Row([
+            dbc.Col(dbc.Label('Resume Time'), width=2),
+            dbc.Col(
+                [
+                    dbc.Row(
+                        [
+                            dbc.Col(dbc.Input(id='resume-time-input', type='datetime-local', value=current_time_input())),
+                            dbc.Col(html.Button("Now", id='resume-now-btn', ))
+                        ], align='center', justify='end', className='gx-1'),
+                    dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary")
+                ]
+            )]),
+    ]
 )
 
 
 shutdown_time = dbc.Card([
-    # dbc.CardHeader(html.H5("Shutdown"), style=cardheader_style),
-    dbc.CardBody([
-        shutdown_time_input,
-dbc.Row(dbc.Col(html.Button('SAVE', id='shutdown-btn', n_clicks=0, className='save-button'), width='auto'),
-        align='center', justify='center', className='mt-3')
-    ]),])
-
-instrument_status = dbc.Card(
-    [
-        # dbc.CardHeader(html.H5("Facility Instruments Ready"), style=cardheader_style),
-        dbc.CardBody(
-            [
-                dbc.Row(
-                    [
-                        # Column for the checklist
-                        dbc.Col(
-                            dbc.Checklist(
-                                id=instruments[0],
-                                options=[{'label': instruments[0], 'value': 1}], switch=True, inline=True
-                            )
-                        ),
-                        dbc.Col(dbc.Checklist(id=instruments[1],options=[{'label': instruments[1], 'value': 1}],switch=True,inline=True)),
-                        dbc.Col(dbc.Checklist(id=instruments[2],options=[{'label': instruments[2], 'value': 1}],switch=True,inline=True)),
-                        dbc.Col(dbc.Checklist(id=instruments[3],options=[{'label': instruments[3], 'value': 1}],switch=True,inline=True)),
-
-
-                    ], className='mb-3', align='center', justify='center'
-                ),
-                dbc.Row(dbc.Col(html.Button("SAVE", id='instrument-btn', className='save-button', n_clicks=0),width='auto'), align='center', justify='center')
-            ]
-        ),
-    ], className='mb-4'
-)
+    dbc.CardHeader(html.H5("Shutdown", style=cardheader_style)),
+    dbc.CardBody(shutdown_time_input,style=cardbody_style),
+    dbc.CardFooter(
+        html.Div(html.Button('SAVE', id='shutdown-btn', n_clicks=0, className='save-button'),style=cardfooter_style)),])
 
 reasons = ['Weather', 'Icing', 'Power',  'Observers', 'Other']
+problem_reasons = html.Div(
+    dbc.Row([
+        dbc.Col(dbc.Label('Enter reasons'), width=2),  # This is the label column
+        dbc.Col([
+            dbc.Row(
+                [
+                    dbc.Col(dbc.Row([dbc.FormText(reasons[0]), dbc.Input(id=f"lost-{reasons[0].lower()}")]), className='mx-2'),
+                    dbc.Col(dbc.Row([dbc.FormText(reasons[1]), dbc.Input(id=f"lost-{reasons[1].lower()}")]),className='mx-2'),
+                    dbc.Col(dbc.Row([dbc.FormText(reasons[2]), dbc.Input(id=f"lost-{reasons[2].lower()}")]),className='mx-2'),
+                    dbc.Col(dbc.Row([dbc.FormText('Observers Not Available'), dbc.Input(id=f"lost-{reasons[3].lower()}")]),className='mx-2'),
+                ], align='center',
+            ),
+           dbc.Row(dbc.Col([dbc.FormText(reasons[4]), dbc.Input(id=f"lost-{reasons[4].lower()}")],), ),]
+        ),
+    ],  )
+)
 
 problem_form = dbc.Card(
     [
-        # dbc.CardHeader(html.H5("Report A Problem"), style=cardheader_style),
+        dbc.CardHeader(html.H5("Pause or Cancellation", style=cardheader_style)),
         dbc.CardBody(
             [
                 dbc.Row(problem_log_time_input, className='mb-3'),
-                html.Hr(),
-                dbc.Label('Enter reasons for the problem', ),
-                dbc.Row(
-                    [
-                    dbc.Col(
-                            [
-                                dbc.FormText(reasons[0]),
-                                dbc.Input(id=f"lost-{reasons[0].lower()}"),
-                            ], width='4'
-                        ),
-                    dbc.Col(
-                            [
-                                dbc.FormText(reasons[1]),
-                                dbc.Input(id=f"lost-{reasons[1].lower()}"),
-                            ], width='4'
-                        ),
-                    dbc.Col(
-                        [
-                            dbc.FormText(reasons[2]),
-                            dbc.Input(id=f"lost-{reasons[2].lower()}"),
-                        ], width='4'
-                    ),
-                    dbc.Col(
-                        [
-                            dbc.FormText('Observers Not Available'),
-                            dbc.Input(id=f"lost-{reasons[3].lower()}"),
-                        ], width='4'
-                    ),
-                    dbc.Col(
-                            [
-                                dbc.FormText(reasons[4]),
-                                dbc.Input(id=f"lost-{reasons[4].lower()}"),
-                            ], width='4'
-                        )
-                    ] , align='start', justify='start'
-                ),
-                dbc.Row(dbc.Col(html.Button('SAVE', id='problem-btn', n_clicks=0, className='save-button'),
-                                width='auto'), align='center', justify='center', className='mt-2')
-            ]
-        )
-    ], className='mb-4 '
+                problem_reasons,
+            ],style=cardbody_style
+        ),
+        dbc.CardFooter(html.Div(html.Button('SAVE', id='problem-btn', n_clicks=0, className='save-button'),style=cardfooter_style,))
+    ]
 )
 
-restart_form = dbc.Card(
+resume_form = dbc.Card(
     [
-        # dbc.CardHeader(html.H5("Restart"), style=cardheader_style),
+        dbc.CardHeader(html.H5("Resume", style=cardheader_style)),
         dbc.CardBody(
             [
-                dbc.Row(restart_time_input,),
-                dbc.Row(dbc.Col(html.Button('SAVE', id='restart-btn', n_clicks=0, className='save-button'), width='auto'),
-                        align='center', justify='center', className='mt-3')
-            ]
-        )
-    ], className='mb-5 '
+                resume_time_input,
+                dbc.Row(
+                    [
+                        dbc.Col(dbc.Label('Comment'), width=2),
+                        dbc.Col(dcc.Textarea(id='resume-comment', placeholder='Enter comment here',
+                                             style={'width':'100%'}), ),
+                    ], className='mt-3'),
+            ],style=cardbody_style),
+        dbc.CardFooter(html.Div(html.Button('SAVE', id='resume-btn', n_clicks=0, className='save-button'),style=cardfooter_style))
+    ],
 )
 # label and input for the form (Weather, Icing, Power, Observer, Other)
 obsNum_input = html.Div(
     [
         dbc.Row([dbc.Col(dbc.Input(id='obsnum-input'),),
-                 dbc.Col(html.Button('Update', id='update-btn'), width='auto'),],align='center', justify='end', className='gx-1' ),
+                 #dbc.Col(html.Button('Update', id='update-btn'), width='auto'),
+                 ],align='center', justify='end', className='gx-1'
+                ),
         dbc.FormText("Enter as a list of values ObsNum1, ObsNum2, ... where each ObsNum is a number or a range in the form n1-n2 "
                      "OR push the Update button to get ObsNum from the system", color="secondary"),
     ],
@@ -232,123 +244,120 @@ keywork_input = html.Div(
 
 ObsNum_form = dbc.Card(
     [
-        # dbc.CardHeader(html.H5("ObsNum",), style=cardheader_style),
+        dbc.CardHeader(html.H5("User Note",), style=cardheader_style),
         dbc.CardBody(
             [
                 obsNum_input,
-                html.Hr(),
+                html.Br(),
                 keywork_input,
-                html.Hr(),
+                html.Br(),
                 dbc.Label('Entry'),
                 dcc.Textarea(id='entry-input', placeholder='Enter entry here', style={'width': '100%', 'height': 30}),
-                dbc.Row(dbc.Col(html.Button('SAVE', id='entry-btn', n_clicks=0, className='save-button'), width='auto'),
-                        align='center', justify='center', className='mt-1')
-            ]
-        )
+            ],style=cardbody_style
+        ),
+        dbc.CardFooter(
+            html.Div(html.Button('SAVE', id='note-btn', n_clicks=0, className='save-button'), style=cardfooter_style))
     ], className='mb-3 '
 )
 
-Observers = dbc.Card([
-    dbc.CardBody([
-        dbc.Label('Select Register Observers'),
-        html.Div(dbc.Checklist(id='observers-checklist', inline=True)),
-        dbc.Input(id='observers-name-input', type='text', placeholder='Enter other observers', className='mt-3'),
-        dbc.Row(dbc.Col(html.Button('SAVE', id='observer-btn', n_clicks=0, className='save-button'), width='auto'),
-                        align='center', justify='center', className='mt-3')
-    ]),
-])
-
 columnDefs = [
     {
-        "headerName": "Log Details",
+        "headerName": "Observer Arrival details",
         "children": [
-            {"field": "ID",  "pinned": 'left'},
-            {"field": "Timestamp", "pinned": 'left'},
-            {"field": "Operator Name",  "pinned": 'left'},
-            {"field": "Observers", "pinned": 'left'},
+            {"field": data_column[0], "columnGroupShow": "open"},
+            {"field": data_column[1], "columnGroupShow": "open"},
+            {"field": data_column[2]},
+            {"field": data_column[3],"columnGroupShow": "open"},
+            {"field": data_column[4],"columnGroupShow": "open"},
+            {"field": data_column[5],"columnGroupShow": "open"},
         ]
-    },
-
-    {
-        "headerName": "Operation Times",
-        "children": [
-            {"field": "Arrival Time", },
-            {"field": "Shutdown Time", "columnGroupShow": "open"},
-            {"field": "Lost Time", "columnGroupShow": "open"},
-            {"field": "Restart Time", "columnGroupShow": "open"},
-        ],
     },
     {
         "headerName": "Instruments",
         "children": [
-            {"field": "RSR",},
-            {"field": "SEQUOIA", "columnGroupShow": "open"},
-            {"field": "TolTEC", "columnGroupShow": "open"},
-            {"field": "1mm", "columnGroupShow": "open"},
+            {"field": data_column[6],},
+            {"field": data_column[7], "columnGroupShow": "open"},
+            {"field": data_column[8], "columnGroupShow": "open"},
+            {"field": data_column[9], "columnGroupShow": "open"},
         ],
     },
     {
-        "headerName": "Lost Details",
+        "headerName": "Problem Details",
         "children": [
-            {"field": "Weather"},
-            {"field": "Icing", "columnGroupShow": "open"},
-            {"field": "Power", "columnGroupShow": "open"},
-            {"field": "Observers Not Available", "columnGroupShow": "open"},
-            {"field": "Others", "columnGroupShow": "open"},
+            {"field": data_column[10]},
+            {"field": data_column[11], "columnGroupShow": "open"},
+            {"field": data_column[12], "columnGroupShow": "open"},
+            {"field": data_column[13], "columnGroupShow": "open"},
+            {"field": data_column[14], "columnGroupShow": "open"},
+            {"field": data_column[15], "columnGroupShow": "open"},
         ],
     },
     {
-        "headerName": "Observation",
+        "headerName": "Resume Details",
         "children": [
-            {"field": "ObsNum"},
-            {"field": "Keyword", "columnGroupShow": "open"},
-            {"field": "Entry", "columnGroupShow": "open"},
+            {"field": data_column[16]},
+            {"field": data_column[17], "columnGroupShow": "open"},
+        ],
+    },
+    {
+        "headerName": "User Notes",
+        "children": [
+            {"field": data_column[18]},
+            {"field": data_column[19], "columnGroupShow": "open"},
+            {"field": data_column[20], "columnGroupShow": "open"},
+        ],
+    },
+    {
+        "headerName": "Shutdown",
+        "children": [
+            {"field": data_column[21]},
         ],
     }
 ]
-log_history = dbc.Card(
+log_history = html.Div(
             [
-                dbc.CardHeader([
-                    dbc.Row([
-                        dbc.Col(dbc.Button("View Log History ", id="view-btn",className='download-button'),width='auto'),
-                        dbc.Col(html.Button('Download Log', id='download-button', n_clicks=0, className='download-button'),
-                                width='auto'),
-                    ],  className='mt-3'),
-                ]),
-                dbc.CardBody(
-                    [
-                        html.Div(dag.AgGrid(
+                dbc.Row([
+                    dbc.Col(dbc.Button("View Log History ", id="view-btn",className='download-button'),width='auto'),
+                    dbc.Col(html.Button('Download Log', id='download-button', n_clicks=0, className='download-button'),width='auto'),
+                ],  className='mt-3'),
+
+                html.Div(dag.AgGrid(
                             id='log-table',
                             rowData=fetch_log_data(10),
                             columnDefs=columnDefs,
                             defaultColDef={'filter': True, 'resizable': True},
                             columnSize='sizeToFit',
+
                         ), className='mt-3 ml-5  ', id='log-table-div', style={'display': 'none'}),
-                    ]
-                )
+
+
             ], className='mt-5 mb-5'
         ),
 
-input_select = html.Div(
-    dbc.Tabs([
-        dbc.Tab(operator_arrive, label='Arrival', tab_id='tab-arrive'),
-        dbc.Tab(restart_form, label='Restart'),
-        dbc.Tab(shutdown_time, label='Shutdown'),
-        dbc.Tab(instrument_status, label='Instruments'),
-        dbc.Tab(problem_form, label='Problem'),
-        dbc.Tab(ObsNum_form, label='ObsNum'),
-        dbc.Tab(Observers, label='Observers', tab_id='tab-observers'),
-
-    ], id='tabs'),className='form-container'
-)
+tab_select = html.Div(dbc.Row([
+    dbc.Col([
+        dcc.Tabs(
+            children=[
+            dcc.Tab(label='Arrival', value='tab-arrive'),
+            dcc.Tab(label='Pause or Cancellation', value='tab-problem'),
+            dcc.Tab(label='Resume', value='tab-resume'),
+            dcc.Tab(label='User Note', value='tab-obsnum'),
+            dcc.Tab(label='Shutdown', value='tab-shutdown'),
+            # dcc.Tab(label='Log History', value='tab-log-history'),
+            # dcc.Tab(label='Download Log', value='log-download'),
+        ], id='tabs',vertical=True, value = 'tab-arrive',className='custom-tabs', ),
+    ], width=2, className='tab-container'),
+    dbc.Col(html.Div(id='tab-content'), width=10, className='tab-content-container')
+],))
 
 dash_app_page = dbc.Container([
-    input_select,
+    tab_select,
     html.Div(log_history),
     dcc.Download(id='download-log')
 ])
 
 login_page = html.Div([
+    html.H2('Login', style={'textAlign': 'center'}),
     dbc.Label('Username', className='mt-4', style={'fontWeight': '500'}),
     dbc.Input(id='username', placeholder='Enter your username', className='mb-4', style={'borderRadius': '20px'}),
     dbc.Label('Password', style={'fontWeight': '500'}),
@@ -363,8 +372,8 @@ login_page = html.Div([
     html.Br(),
     html.Div(dbc.Alert(id='login-status', color='dark', is_open=False, dismissable=True,duration=4000,
                        style={'textAlign': 'center'}) ),
-        ],
-    style={'maxWidth': '400px', 'margin': '40px auto', 'padding': '20px'})
+        ],className='login-container mt-5',
+    )
 
 
 register_page = html.Div([
@@ -389,12 +398,7 @@ register_page = html.Div([
         ],
     style={'maxWidth': '400px', 'margin': '40px auto', 'padding': '20px'})
 
-login_tab = html.Div(dbc.Tabs(
-    [
-        dbc.Tab(login_page, label='Login', tab_id='login'),
-        dbc.Tab(register_page, label='REGISTER', tab_id='register'),
-    ], id='login-tabs', active_tab='login', style={'width': '400px', 'margin': 'auto'}
-), className='login-container')
+login_tab = html.Div(login_page,className='login-container')
 
 
 setting_page = html.Div([
@@ -427,14 +431,19 @@ style={'width': '100%'}
 ], className='login-container')
 
 # add delete or modify the username and password
-user_columnDefs =  [
-            {"field": "ID", "checkboxSelection":{"function": "params.data.Username !== 'admin'"}},
-            {"field": "Username", "editable":{"function": "params.data.Username !== 'admin'"}},
-            {"field": "Email", "editable": {"function": "params.data.Username !== 'admin'"}},
-            {"field": "Is Admin", "editable": {"function": "params.data.Username !== 'admin'"}},
-            {"field": "Created At"},
-            ]
-
+# user_columnDefs =  [
+#             {"field": "ID", "checkboxSelection":{"function": "params.data.Username !== 'admin'"}},
+#             {"field": "Username", "editable":{"function": "params.data.Username !== 'admin'"}},
+#             {"field": "Email", "editable": {"function": "params.data.Username !== 'admin'"}},
+#             {"field": "Is Admin", "editable": {"function": "params.data.Username !== 'admin'"}},
+#             {"field": "Created At"},
+#             ]
+user_columnDefs = [
+    {"field": "ID", "checkboxSelection":{"function": "params.data.Username !== 'admin'"}},
+    {"field": "Username"},
+    {"field": "Email"},
+    {"field": "Is Admin"},
+    {"field": "Created At"},]
 
 user_details = dbc.Card(
             [
@@ -449,7 +458,8 @@ user_details = dbc.Card(
                             rowData=fetch_all_users(),
                             columnDefs=user_columnDefs,
                             defaultColDef={'filter': True, 'resizable': True},
-                            dashGridOptions={'rowSelection':"multiple",
+                            dashGridOptions={
+                                #'rowSelection':"multiple",
                                              "suppressRowClickSelection": True, "animateRows": False,
                                              "undoRedoCellEditing": True,
                                              "undoRedoCellEditingLimit": 20,
@@ -461,7 +471,8 @@ user_details = dbc.Card(
                 dbc.CardFooter(
                     dbc.Row([
                         dbc.Col(dbc.Button('Add User', id='add-user-btn', n_clicks=0, className='add-user-button'), width='auto'),
-                        dbc.Col(dbc.Button('Delete User', id='delete-user-btn', n_clicks=0, className='delete-user-button'), width='auto'),
+                        dbc.Col(dbc.Button('Delete User', id='delete-user-btn', n_clicks=0, className='delete-user-button',disabled=True), width='auto'),
+                        #dbc.Col(dbc.Button('Update User', id='update-user-btn', n_clicks=0, className='update-user-button',disabled=True), width='auto'),
                     ], className='mt-3')
                 )
             ], className='mt-5 mb-5'
@@ -496,6 +507,36 @@ admin_add_user = dbc.Modal(
     # style={'maxWidth': '400px', 'margin': '100px', 'padding': '20px', 'display': 'flex','justifyContent': 'center'}
 )
 
+admin_update_user = dbc.Modal(
+    [
+        dbc.ModalHeader(dbc.Label('Modify User', style={'textAlign': 'center', 'fontWeight': 'bold'})),
+        dbc.ModalBody(
+            [
+                dbc.Label('Username', className='mt-4', style={'fontWeight': '500'}),
+                dbc.Input(id='update-username', placeholder='Enter username', className='mb-4', style={'borderRadius': '20px'}),
+                dbc.Label('Email', style={'fontWeight': '500'}),
+                dbc.Input(id='update-email', placeholder='Enter email', className='mb-4', style={'borderRadius': '20px'}),
+                dbc.Label('Is Admin', style={'fontWeight': '500'}),
+                dbc.Checklist(id='update-is-admin', options=[{'label': 'Yes', 'value': 1}], switch=True, inline=True, className='mb-4'),
+                dbc.Label('New Password', style={'fontWeight': '500'}),
+                dbc.Input(id='update-password', placeholder='Enter password', type='password', className='mb-4', style={'borderRadius': '20px'}),
+                dbc.Label('Confirm New Password', style={'fontWeight': '500'}),
+                dbc.Input(id='update-confirm-password', placeholder='Confirm password', type='password', className='mb-4', style={'borderRadius': '20px'}),
+            ]
+        ),
+        dbc.ModalFooter(
+            dbc.Button('Save', id='update-user', n_clicks=0, color='primary', className='mt-2',),
+        ),
+        html.Div(
+            dbc.Alert(id='update-user-status', color='dark', is_open=False, dismissable=True, duration=4000, style={'textAlign': 'center'}),
+            style={'maxWidth': '400px', 'margin': 'auto'}
+        )
+    ],
+    id='update-user-modal',
+    is_open=False,
+    # style={'maxWidth': '400px', 'margin': '100px', 'padding': '20px', 'display': 'flex','justifyContent': 'center'}
+)
+
 admin_page = dbc.Container(
     [
         html.Div([
@@ -504,5 +545,6 @@ admin_page = dbc.Container(
 
         html.Div(user_details, style={'display': 'none'}, id='user-details'),
         html.Div(admin_add_user),
+        html.Div(admin_update_user),
         html.Div(dbc.Alert(id='admin-status', color='dark', is_open=False, dismissable=True,), style={'textAlign': 'center'}),
         ])
