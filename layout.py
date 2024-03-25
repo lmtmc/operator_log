@@ -41,7 +41,7 @@ navbar = html.Div(dbc.NavbarSimple(
 )
 
 cardheader_style = {'textAlign': 'center'}
-cardbody_style = {'height': '325px', 'overflowY': 'auto'}
+cardbody_style = {'height': '410px', 'overflowY': 'auto'}
 cardfooter_style = {'textAlign': 'right'}
 # arrival page 1. observers name component
 observers = html.Div(
@@ -78,28 +78,47 @@ arrival_time_input = html.Div(
     ]
 )
 
-# 3. arrival page 3 instrument status component
-instrument_status = html.Div(
+# Arrival page 3. weather component
+arrival_weather = html.Div(
     [
-        dbc.Row(
-            [
-                dbc.Col(dbc.Label('Instrument Status'), width=2),
-                dbc.Col(
+        dbc.Row([
+            dbc.Col(dbc.Label('Weather Condition'), width=2),
+
+            dbc.Col(
+                [
                     dbc.Row(
                         [
-                            dbc.Col(dbc.Checklist(
-                                id=instrument,
-                                options=[{'label': f'{instrument} ready', 'value': 1}],
-                                inline=True
-                            )) for instrument in instruments
-                        ], className='mb-3', align='center', justify='center'
+                            dbc.Col(
+                                dbc.Input(id='weather-time-input', type='datetime-local', value=current_time_input())),
+                            dbc.Col(html.Button("Now", id='weather-now-btn', ))
+                        ], align='center', justify='end', className='gx-1'),
+                    dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary"),
+                    dbc.Row(
+                        [
+                            dbc.Col([dbc.Label('Sky'), dbc.Input(id='sky-input')]),
+                            dbc.Col([dbc.Label('Tau'), dbc.Input(id='tau-input')]),
+                            dbc.Col([dbc.Label('T'), dbc.Input(id='t-input')]),
+                            dbc.Col([dbc.Label('RH'), dbc.Input(id='rh-input')]),
+                            dbc.Col([dbc.Label('Wind'), dbc.Input(id='wind-input')]),
+                            dbc.Col([dbc.Label('Other'), dbc.Input(id='weather-other-input')]),
+                        ], align='center'
                     ),
-                )
-            ]
-        ),
-    ],
+                ]
+            ),
+        ]),
+    ]
 )
 
+# arrival page #4 Main Plan
+main_plan = html.Div(
+    [
+        dbc.Row([
+            dbc.Col(dbc.Label('Main Plan'), width=2),
+            dbc.Col(dbc.Input(id='main-plan-input', placeholder='Enter main plan here', style={'width': '100%'}), ),
+        ], className='mt-3')
+    ]
+)
+# arrival page
 observer_arrive = dbc.Card([
         dbc.CardHeader(html.H5(id='observer-name-label', style=cardheader_style)),
         dbc.CardBody(
@@ -108,13 +127,89 @@ observer_arrive = dbc.Card([
                 html.Br(),
                 arrival_time_input,
                 html.Br(),
-                instrument_status,
+                arrival_weather,
+                html.Br(),
+                main_plan,
             ],style=cardbody_style
         ),
     dbc.CardFooter(
         html.Div(html.Button("SAVE", id='arrival-btn', n_clicks=0,className='save-button'),style=cardfooter_style)
     )],
 )
+
+# instrument page 1 instrument start time component
+instrument_time_input = html.Div(
+    [
+        dbc.Row([
+            dbc.Col(dbc.Label('System Start Time'), width=2),
+            dbc.Col(
+                [
+                    dbc.Row(
+                        [
+                            dbc.Col(dbc.Input(id='start-time-input', type='datetime-local', value=current_time_input())),
+                            dbc.Col(html.Button("Now", id='start-now-btn', ))
+                        ], align='center', justify='end', className='gx-1'),
+                    dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary")
+                ]
+            )]),
+    ]
+)
+
+# instrument page 2 instrument status component
+instrument_status = html.Div(
+    [
+        dbc.Row([
+            dbc.Col(dbc.Label('Initial Setup'), width=2),
+            dbc.Col(
+                [
+                    dbc.Row(
+                        [dbc.Col(dbc.Checklist(
+                                id=instrument,
+                                options=[{'label': f'{instrument} ready', 'value': 1}],
+                                inline=True,
+                            ),width=3),  # Adjust width as needed
+                            dbc.Col(dbc.Input(id=f'{instrument}-setup-time', type='datetime-local', value=current_time_input()),width='auto'),
+                            dbc.Col(html.Button("Now", id=f'{instrument}-setup-now-btn', ),width='auto'),
+
+                            dbc.Col(dbc.Input(id=f'{instrument}-note', placeholder="Note"), width=4),  # Adjust width as needed
+                        ],
+                        className='mb-3',  # Adds margin-bottom
+                        align='center',  # Vertically center the items in the row
+                    ) for instrument in instruments
+                ]
+            ),
+        ]),
+    ],
+)
+
+# Instrument page 3 Notes
+instrument_notes =  html.Div(dbc.Row(
+            [
+                dbc.Col(dbc.Label('Notes'), width=2),
+                dbc.Col(dbc.Input(id='instrument-note', placeholder='Enter note here',
+                                  style={'width': '100%'}), ),
+            ], className='mt-3'
+        ))
+
+instrument_form = html.Div(
+    [
+        dbc.Card(
+            [
+                dbc.CardHeader(html.H5("Instrument Setup", style=cardheader_style)),
+                dbc.CardBody(
+                    [
+                        instrument_time_input,
+                        html.Br(),
+                        instrument_notes,
+                        html.Br(),
+                        instrument_status,
+                    ],style=cardbody_style
+                ),
+                dbc.CardFooter(
+                    html.Div(html.Button('SAVE', id='instrument-btn', n_clicks=0, className='save-button'),style=cardfooter_style)
+                )
+    ]
+)])
 
 shutdown_time_input = html.Div(
     [
@@ -212,7 +307,7 @@ resume_form = dbc.Card(
                 dbc.Row(
                     [
                         dbc.Col(dbc.Label('Comment'), width=2),
-                        dbc.Col(dcc.Textarea(id='resume-comment', placeholder='Enter comment here',
+                        dbc.Col(dbc.Input(id='resume-comment', placeholder='Enter comment here',
                                              style={'width':'100%'}), ),
                     ], className='mt-3'),
             ],style=cardbody_style),
@@ -253,7 +348,7 @@ ObsNum_form = dbc.Card(
                 html.Br(),
                 keywork_input,
                 dbc.Label('Entry'),
-                dcc.Textarea(id='entry-input', placeholder='Enter entry here', style={'width': '100%', 'height': 30}),
+                dbc.Input(id='entry-input', placeholder='Enter entry here'),
             ],style=cardbody_style
         ),
         dbc.CardFooter(
@@ -353,6 +448,7 @@ tab_select = html.Div(dbc.Row([
             dcc.Tabs(
             children=[
             dcc.Tab(label='Arrival', value='tab-arrive', style=tab_style, selected_style=tab_selected_style),
+            dcc.Tab(label='Instruments', value='tab-instrument', style=tab_style, selected_style=tab_selected_style),
             dcc.Tab(label='Pause or Cancellation', value='tab-problem',style=tab_style, selected_style=tab_selected_style),
             dcc.Tab(label='Resume', value='tab-resume',style=tab_style, selected_style=tab_selected_style),
             dcc.Tab(label='User Note', value='tab-obsnum',style=tab_style, selected_style=tab_selected_style),

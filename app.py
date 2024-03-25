@@ -10,7 +10,7 @@ import pandas as pd
 import datetime
 import time
 from layout import (login_page, dash_app_page, setting_page,navbar, prefix, instruments,data_column,
-                    admin_page,observer_arrive, problem_form,resume_form, ObsNum_form,shutdown_time)
+                    admin_page,observer_arrive, instrument_form,problem_form,resume_form, ObsNum_form,shutdown_time)
 from db import (exist_user, exist_email,delete_user,validate_user, add_user, update_user,update_user_password,fetch_user_by_username,
                 fetch_all_users,add_log_entry, fetch_log_data,init_db,create_admin_user,
                 current_time, current_time_input, log_time)
@@ -181,6 +181,8 @@ def update_tab_content(active_tab):
         raise PreventUpdate
     if active_tab == 'tab-arrive':
         return observer_arrive
+    elif active_tab == 'tab-instrument':
+        return instrument_form
     elif active_tab == 'tab-problem':
         return problem_form
     elif active_tab == 'tab-resume':
@@ -221,24 +223,47 @@ def update_log_table(n_clicks):
     [
         State('observers-checklist', 'value'),
         State('observer-name-input', 'value'),
-        State('arrival-time-input', 'value')
+        State('arrival-time-input', 'value'),
+        State('weather-time-input', 'value'),
+        State('sky-input', 'value'),
+        State('tau-input', 'value'),
+        State('t-input', 'value'),
+        State('rh-input', 'value'),
+        State('wind-input', 'value'),
+        State('weather-other-input', 'value'),
+    ],
+    prevent_initial_call=True
+)
+def save_arrival(n_clicks, observers_other, others, arrival_time, weather_time, sky, tau, t, rh, wind, weather_other):
+    if n_clicks is None or n_clicks == 0:
+        raise PreventUpdate
+    # join the names of the observers
+    observers_other = ','.join(observers_other) if observers_other else ''
+    #instrument_statuses = ["Ready" if status is not None and status[0] == 1 else "Not Ready" for status in instrument_statuses]
+    add_log_entry(timestamp=current_time(), observer_account=current_user.id, other_observers=observers_other,others=others,
+                  arrival_time=log_time(arrival_time),weather_time=log_time(weather_time), sky=sky, tau=tau, t=t, rh=rh, wind=wind, weather_other=weather_other)
+    return fetch_log_data(10)
+
+# save instrument status when the instrument button is clicked
+@app.callback(
+    Output('log-table', 'rowData', allow_duplicate=True),
+    Input('instrument-btn', 'n_clicks'),
+    [
+        State('start-time-input', 'value'),
+        State('instrument-note', 'value')
     ] +
     [
         State(instrument, 'value') for instrument in instruments
     ],
     prevent_initial_call=True
 )
-def save_arrival(n_clicks, observers_other, others, arrival_time, *instrument_statuses):
+def save_instrument(n_clicks, start_time, note,*instrument_statuses):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
-    # join the names of the observers
-    observers_other = ','.join(observers_other) if observers_other else ''
     instrument_statuses = ["Ready" if status is not None and status[0] == 1 else "Not Ready" for status in instrument_statuses]
-    add_log_entry(timestamp=current_time(), observer_account=current_user.id, other_observers=observers_other,others=others,
-                  arrival_time=log_time(arrival_time), toltec=instrument_statuses[0], rsr=instrument_statuses[1],
-                  sequoia=instrument_statuses[2],one_mm=instrument_statuses[3])
+    add_log_entry(timestamp=current_time(), observer_account=current_user.id,start_time=log_time(start_time),
+                  instrument_statuses=instrument_statuses, instrument_note=note)
     return fetch_log_data(10)
-
 # save the problem log when the problem button is clicked
 @app.callback(
     Output('log-table', 'rowData', allow_duplicate=True),

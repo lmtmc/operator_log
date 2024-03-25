@@ -115,7 +115,8 @@ class User(UserBase):
     def verify_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-data_column = ["ID", "Timestamp", "Observer Account", "Other Observers", "Other", "Arrival Time",
+data_column = ["ID", "Timestamp", "Observer Account", "Other Observers", "Other", "Arrival Time","Weather Record Time",
+
                "TolTEC", "RSR", "SEQUOIA", "1mm", "Pause Time", "Weather", "Icing", "Power", "Observers Not Available", "Others",
                "Resume Time", "Comment", "ObsNum", "Keyword", "Entry", "Shutdown Time"]
 
