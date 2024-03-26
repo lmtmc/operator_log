@@ -4,7 +4,7 @@ from dash import html, dcc, Input, Output, State
 import dash_auth
 import datetime
 import dash_ag_grid as dag
-from db import (fetch_log_data, current_time_input, fetch_all_users, add_user, data_column,
+from db import (fetch_log_data, current_time, fetch_all_users, add_user, data_column,
                 update_user_password, fetch_user_by_username, exist_user, exist_email, validate_user,fetch_all_users)
 
 prefix = 'observer_log'
@@ -69,8 +69,8 @@ arrival_time_input = html.Div(
                 [
                     dbc.Row(
                         [
-                            dbc.Col(dbc.Input(id='arrival-time-input', type='datetime-local', value=current_time_input())),
-                            dbc.Col(html.Button("Now", id='arrive-now-btn', ))
+                            dbc.Col(dbc.Input(id={'type':'dynamic-time-input','index':'arrival-time-input'}, type='datetime-local', value=current_time())),
+                            dbc.Col(html.Button("Now", id={'type':'dynamic-time-now-btn','index':'arrival-time-input'}, ))
                         ], align='center', justify='end', className='gx-1'),
                     dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary")
                 ]
@@ -89,10 +89,11 @@ arrival_weather = html.Div(
                     dbc.Row(
                         [
                             dbc.Col(
-                                dbc.Input(id='weather-time-input', type='datetime-local', value=current_time_input())),
-                            dbc.Col(html.Button("Now", id='weather-now-btn', ))
+                                dbc.Input(id={'type':'dynamic-time-input','index':'weather-time-input'}, type='datetime-local', )),
+                            dbc.Col(html.Button("Now", id={'type':'dynamic-time-now-btn','index':'weather-time-input'}, ))
                         ], align='center', justify='end', className='gx-1'),
                     dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary"),
+                    html.Br(),
                     dbc.Row(
                         [
                             dbc.Col([dbc.Label('Sky'), dbc.Input(id='sky-input')]),
@@ -146,8 +147,8 @@ instrument_time_input = html.Div(
                 [
                     dbc.Row(
                         [
-                            dbc.Col(dbc.Input(id='start-time-input', type='datetime-local', value=current_time_input())),
-                            dbc.Col(html.Button("Now", id='start-now-btn', ))
+                            dbc.Col(dbc.Input(id={'type':'dynamic-time-input','index':'start-time-input'}, type='datetime-local')),
+                            dbc.Col(html.Button("Now", id={'type':'dynamic-time-now-btn','index':'start-time-input'}, ))
                         ], align='center', justify='end', className='gx-1'),
                     dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary")
                 ]
@@ -168,8 +169,8 @@ instrument_status = html.Div(
                                 options=[{'label': f'{instrument} ready', 'value': 1}],
                                 inline=True,
                             ),width=3),  # Adjust width as needed
-                            dbc.Col(dbc.Input(id=f'{instrument}-setup-time', type='datetime-local', value=current_time_input()),width='auto'),
-                            dbc.Col(html.Button("Now", id=f'{instrument}-setup-now-btn', ),width='auto'),
+                            dbc.Col(dbc.Input(id={'type':'dynamic-time-input','index':f'{instrument}-time-input'}, type='datetime-local', ),width='auto'),
+                            dbc.Col(html.Button("Now", id={'type':'dynamic-time-now-btn', 'index':f'{instrument}-time-input'}),width='auto'),
 
                             dbc.Col(dbc.Input(id=f'{instrument}-note', placeholder="Note"), width=4),  # Adjust width as needed
                         ],
@@ -219,8 +220,8 @@ shutdown_time_input = html.Div(
                 [
                     dbc.Row(
                         [
-                            dbc.Col(dbc.Input(id='shutdown-time-input', type='datetime-local', value=current_time_input())),
-                            dbc.Col(html.Button("Now", id='shutdown-now-btn', ))
+                            dbc.Col(dbc.Input(id={'type':'dynamic-time-input','index':'shutdown-time-input'}, type='datetime-local', )),
+                            dbc.Col(html.Button("Now", id={'type':'dynamic-time-now-btn','index':'shutdown-time-input'}, ))
                         ], align='center', justify='end', className='gx-1'),
                     dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary")
                 ]
@@ -235,8 +236,8 @@ problem_log_time_input = html.Div(
                 [
                     dbc.Row(
                         [
-                            dbc.Col(dbc.Input(id='problem-log-time', type='datetime-local', value=current_time_input())),
-                            dbc.Col(html.Button("Now", id='problem-log-now-btn', ))
+                            dbc.Col(dbc.Input(id={'type':'dynamic-time-input','index':'problem-log-time'}, type='datetime-local',)),
+                            dbc.Col(html.Button("Now", id={'type':'dynamic-time-now-btn','index':'problem-log-time'}, ))
                         ], align='center', justify='end', className='gx-1'),
                     dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary")
                 ]
@@ -251,8 +252,8 @@ resume_time_input = html.Div(
                 [
                     dbc.Row(
                         [
-                            dbc.Col(dbc.Input(id='resume-time-input', type='datetime-local', value=current_time_input())),
-                            dbc.Col(html.Button("Now", id='resume-now-btn', ))
+                            dbc.Col(dbc.Input(id={'type':'dynamic-time-input','index':'resume-time-input'}, type='datetime-local', )),
+                            dbc.Col(html.Button("Now", id={'type':'dynamic-time-now-btn','index':'resume-time-input'}, ))
                         ], align='center', justify='end', className='gx-1'),
                     dbc.FormText("Enter time manually or push 'Now' to use current time", color="secondary")
                 ]
@@ -357,56 +358,79 @@ ObsNum_form = dbc.Card(
 )
 
 columnDefs = [
+    {"field": data_column[0]},
+    {"field": data_column[1]},
     {
-        "headerName": "Observer Arrival details",
+        "headerName": "Observers",
         "children": [
-            {"field": data_column[0], "columnGroupShow": "open"},
-            {"field": data_column[1], "columnGroupShow": "open"},
-            {"field": data_column[2]},
-            {"field": data_column[3],"columnGroupShow": "open"},
-            {"field": data_column[4],"columnGroupShow": "open"},
+            {"field": data_column[2], },
+            {"field": data_column[3], "columnGroupShow": "open"},
+            {"field": data_column[4], "columnGroupShow": "open"},
             {"field": data_column[5],"columnGroupShow": "open"},
         ]
     },
     {
-        "headerName": "Instruments",
+        "headerName": "Weather",
         "children": [
             {"field": data_column[6],},
             {"field": data_column[7], "columnGroupShow": "open"},
             {"field": data_column[8], "columnGroupShow": "open"},
             {"field": data_column[9], "columnGroupShow": "open"},
+            {"field": data_column[10], "columnGroupShow": "open"},
+            {"field": data_column[11], "columnGroupShow": "open"},
+            {"field": data_column[12], "columnGroupShow": "open"},
+        ]
+    },
+    { "field": data_column[13]},
+    {
+        "headerName": "Instruments",
+        "children": [
+            {"field": data_column[14],},
+            {"field": data_column[15], "columnGroupShow": "open"},
+            {"field": data_column[16], "columnGroupShow": "open"},
+            {"field": data_column[17], "columnGroupShow": "open"},
+            {"field": data_column[18], "columnGroupShow": "open"},
+            {"field": data_column[19], "columnGroupShow": "open"},
+            {"field": data_column[20], "columnGroupShow": "open"},
+            {"field": data_column[21], "columnGroupShow": "open"},
+            {"field": data_column[22], "columnGroupShow": "open"},
+            {"field": data_column[23], "columnGroupShow": "open"},
+            {"field": data_column[24], "columnGroupShow": "open"},
+            {"field": data_column[25], "columnGroupShow": "open"},
+            {"field": data_column[26], "columnGroupShow": "open"},
+            {"field": data_column[27], "columnGroupShow": "open"},
         ],
     },
     {
         "headerName": "Problem Details",
         "children": [
-            {"field": data_column[10]},
-            {"field": data_column[11], "columnGroupShow": "open"},
-            {"field": data_column[12], "columnGroupShow": "open"},
-            {"field": data_column[13], "columnGroupShow": "open"},
-            {"field": data_column[14], "columnGroupShow": "open"},
-            {"field": data_column[15], "columnGroupShow": "open"},
+            {"field": data_column[28]},
+            {"field": data_column[29], "columnGroupShow": "open"},
+            {"field": data_column[30], "columnGroupShow": "open"},
+            {"field": data_column[31], "columnGroupShow": "open"},
+            {"field": data_column[32], "columnGroupShow": "open"},
+            {"field": data_column[33], "columnGroupShow": "open"},
         ],
     },
     {
         "headerName": "Resume Details",
         "children": [
-            {"field": data_column[16]},
-            {"field": data_column[17], "columnGroupShow": "open"},
+            {"field": data_column[34]},
+            {"field": data_column[35], "columnGroupShow": "open"},
         ],
     },
     {
         "headerName": "User Notes",
         "children": [
-            {"field": data_column[18]},
-            {"field": data_column[19], "columnGroupShow": "open"},
-            {"field": data_column[20], "columnGroupShow": "open"},
+            {"field": data_column[36]},
+            {"field": data_column[37], "columnGroupShow": "open"},
+            {"field": data_column[38], "columnGroupShow": "open"},
         ],
     },
     {
         "headerName": "Shutdown",
         "children": [
-            {"field": data_column[21]},
+            {"field": data_column[39]},
         ],
     }
 ]
@@ -539,13 +563,6 @@ style={'width': '100%'}
 ], className='login-container')
 
 # add delete or modify the username and password
-# user_columnDefs =  [
-#             {"field": "ID", "checkboxSelection":{"function": "params.data.Username !== 'admin'"}},
-#             {"field": "Username", "editable":{"function": "params.data.Username !== 'admin'"}},
-#             {"field": "Email", "editable": {"function": "params.data.Username !== 'admin'"}},
-#             {"field": "Is Admin", "editable": {"function": "params.data.Username !== 'admin'"}},
-#             {"field": "Created At"},
-#             ]
 user_columnDefs = [
     {"field": "ID", "checkboxSelection":{"function": "params.data.Username !== 'admin'"}},
     {"field": "Username"},

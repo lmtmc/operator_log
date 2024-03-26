@@ -13,7 +13,7 @@ from layout import (login_page, dash_app_page, setting_page,navbar, prefix, inst
                     admin_page,observer_arrive, instrument_form,problem_form,resume_form, ObsNum_form,shutdown_time)
 from db import (exist_user, exist_email,delete_user,validate_user, add_user, update_user,update_user_password,fetch_user_by_username,
                 fetch_all_users,add_log_entry, fetch_log_data,init_db,create_admin_user,
-                current_time, current_time_input, log_time)
+                current_time, current_timestamp,log_time)
 import flask
 from flask import redirect, url_for, render_template_string, request
 import os
@@ -223,25 +223,26 @@ def update_log_table(n_clicks):
     [
         State('observers-checklist', 'value'),
         State('observer-name-input', 'value'),
-        State('arrival-time-input', 'value'),
-        State('weather-time-input', 'value'),
+        State({'type':'dynamic-time-input', 'index':'arrival-time-input'}, 'value'),
+        State({'type':'dynamic-time-input','index':'weather-time-input'}, 'value'),
         State('sky-input', 'value'),
         State('tau-input', 'value'),
         State('t-input', 'value'),
         State('rh-input', 'value'),
         State('wind-input', 'value'),
         State('weather-other-input', 'value'),
+        State('main-plan-input', 'value'),
     ],
     prevent_initial_call=True
 )
-def save_arrival(n_clicks, observers_other, others, arrival_time, weather_time, sky, tau, t, rh, wind, weather_other):
+def save_arrival(n_clicks, observers_other, others, arrival_time, weather_time, sky, tau, t, rh, wind, weather_other,main_plan):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
     # join the names of the observers
     observers_other = ','.join(observers_other) if observers_other else ''
-    #instrument_statuses = ["Ready" if status is not None and status[0] == 1 else "Not Ready" for status in instrument_statuses]
-    add_log_entry(timestamp=current_time(), observer_account=current_user.id, other_observers=observers_other,others=others,
-                  arrival_time=log_time(arrival_time),weather_time=log_time(weather_time), sky=sky, tau=tau, t=t, rh=rh, wind=wind, weather_other=weather_other)
+    add_log_entry(timestamp=current_timestamp(), observer_account=current_user.id, other_observers=observers_other,others=others,
+                  arrival_time=log_time(arrival_time),weather_time=log_time(weather_time), sky=sky, tau=tau, t=t, rh=rh, wind=wind, weather_other=weather_other,
+                  main_plan=main_plan)
     return fetch_log_data(10)
 
 # save instrument status when the instrument button is clicked
@@ -249,27 +250,41 @@ def save_arrival(n_clicks, observers_other, others, arrival_time, weather_time, 
     Output('log-table', 'rowData', allow_duplicate=True),
     Input('instrument-btn', 'n_clicks'),
     [
-        State('start-time-input', 'value'),
+        State({'type':'dynamic-time-input','index':'start-time-input'}, 'value'),
         State('instrument-note', 'value')
     ] +
     [
         State(instrument, 'value') for instrument in instruments
+    ] +
+    [
+        State({'type':'dynamic-time-input', 'index': f'{instrument}-time-input'},'value') for instrument in instruments
+    ] +
+    [
+        State(f'{instrument}-note', 'value') for instrument in instruments
     ],
     prevent_initial_call=True
 )
-def save_instrument(n_clicks, start_time, note,*instrument_statuses):
+def save_instrument(n_clicks, start_time, observer_notes, *instrument_statuses):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
-    instrument_statuses = ["Ready" if status is not None and status[0] == 1 else "Not Ready" for status in instrument_statuses]
-    add_log_entry(timestamp=current_time(), observer_account=current_user.id,start_time=log_time(start_time),
-                  instrument_statuses=instrument_statuses, instrument_note=note)
+
+    # Assuming instrument_statuses are packed as [status, note, time] for each instrument
+    statuses, times, notes = instrument_statuses[0:4], instrument_statuses[4:8], instrument_statuses[8:12]
+    statuses = ["Ready" if status is not None and status[0] == 1 else "Not Ready" for status in statuses]
+    times = [log_time(time) for time in times]
+    add_log_entry(timestamp=current_timestamp(), observer_account=current_user.id, start_time=log_time(start_time), notes=observer_notes,
+                  toltec=statuses[0], toltec_time=times[0], toltec_note=notes[0],
+                  rsr=statuses[1], rsr_time=times[1], rsr_note=notes[1],
+                    sequoia=statuses[2], sequoia_time=times[2], sequoia_note=notes[2],
+                    one_mm=statuses[3], one_mm_time=times[3], one_mm_note=notes[3])
+    # Fetch and return the updated log data for the table
     return fetch_log_data(10)
 # save the problem log when the problem button is clicked
 @app.callback(
     Output('log-table', 'rowData', allow_duplicate=True),
     Input('problem-btn', 'n_clicks'),
     [
-        State('problem-log-time', 'value'),
+        State({'type':'dynamic-time-input','index':'problem-log-time'}, 'value'),
         State('lost-weather', 'value'),
         State('lost-icing', 'value'),
         State('lost-power', 'value'),
@@ -281,8 +296,8 @@ def save_instrument(n_clicks, start_time, note,*instrument_statuses):
 def save_problem(n_clicks, problem_time, weather, icing, power, observers, other):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
-    add_log_entry(timestamp=current_time(), observer_account=current_user.id,pause_time=log_time(problem_time),
-                  weather=weather, icing=icing, power=power, observer_not_available=observers, other_reason=other)
+    add_log_entry(timestamp=current_timestamp(), observer_account=current_user.id,pause_time=log_time(problem_time),
+                  weather=weather, icing=icing, power=power, observers_not_available=observers, other_reason=other)
     return fetch_log_data(10)
 
 # save the resume log when the resume button is clicked
@@ -290,7 +305,7 @@ def save_problem(n_clicks, problem_time, weather, icing, power, observers, other
     Output('log-table', 'rowData', allow_duplicate=True),
     Input('resume-btn', 'n_clicks'),
     [
-        State('resume-time-input', 'value'),
+        State({'type':'dynamic-time-input','index':'resume-time-input'}, 'value'),
         State('resume-comment', 'value'),
     ],
     prevent_initial_call=True
@@ -298,7 +313,7 @@ def save_problem(n_clicks, problem_time, weather, icing, power, observers, other
 def save_resume(n_clicks, resume_time, comment):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
-    add_log_entry(timestamp=current_time(), observer_account=current_user.id,resume_time=log_time(resume_time), comment=comment)
+    add_log_entry(timestamp=current_timestamp(), observer_account=current_user.id,resume_time=log_time(resume_time), comment=comment)
     return fetch_log_data(10)
 
 # save user note when the note button is clicked
@@ -320,7 +335,7 @@ def save_note(n_clicks, obsNum, keyword, keyword_checklist, entry):
     if keyword == 'None':
         keyword = ''
     keywords = keyword + ', ' + keyword_checklist if keyword else keyword_checklist
-    add_log_entry(timestamp=current_time(), observer_account=current_user.id,obsNum=obsNum, keywords=keywords, entry=entry)
+    add_log_entry(timestamp=current_timestamp(), observer_account=current_user.id,obsNum=obsNum, keywords=keywords, entry=entry)
     return fetch_log_data(10)
 
 # save the shutdown log when the shutdown button is clicked
@@ -328,56 +343,35 @@ def save_note(n_clicks, obsNum, keyword, keyword_checklist, entry):
     Output('log-table', 'rowData', allow_duplicate=True),
     Input('shutdown-btn', 'n_clicks'),
     [
-        State('shutdown-time-input', 'value'),
+        State({'type':'dynamic-time-input','index':'shutdown-time-input'}, 'value'),
     ],
     prevent_initial_call=True
 )
 def save_shutdown(n_clicks, shutdown_time):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
-    add_log_entry(timestamp=current_time(), observer_account=current_user.id,shutdown_time=log_time(shutdown_time))
+    add_log_entry(timestamp=current_timestamp(), observer_account=current_user.id,shutdown_time=log_time(shutdown_time))
     return fetch_log_data(10)
 
-# if the arrive-now button is clicked, save the current time in the arrival time input
-# if the problem-now button is clicked, save the current time in the problem time input
-# if the shutdown-now button is clicked, save the current time in the shutdown time input
-# if the restart-now button is clicked, save the current time in the restart time input
+
+# dynamic time now button
 @app.callback(
-    Output('arrival-time-input', 'value', allow_duplicate=True),
-    Input('arrive-now-btn', 'n_clicks'),
+    [
+        Output({'type':'dynamic-time-input','index':ALL}, 'value', allow_duplicate=True),
+    ],
+    [
+        Input({'type':'dynamic-time-now-btn','index':ALL}, 'n_clicks'),
+    ],
     prevent_initial_call=True
 )
-def arrival_now(n_clicks):
-    if n_clicks is None or n_clicks == 0:
+def dynamic_time_now(*args):
+    triggered_id = ctx.triggered_id
+    if not triggered_id:
         raise PreventUpdate
-    return current_time_input()
-@app.callback(
-    Output('problem-log-time', 'value', allow_duplicate=True),
-    Input('problem-log-now-btn', 'n_clicks'),
-    prevent_initial_call=True
-)
-def problem_now(n_clicks):
-    if n_clicks is None or n_clicks == 0:
-        raise PreventUpdate
-    return current_time_input()
-@app.callback(
-    Output('resume-time-input', 'value', allow_duplicate=True),
-    Input('resume-now-btn', 'n_clicks'),
-    prevent_initial_call=True
-)
-def resume_now(n_clicks):
-    if n_clicks is None or n_clicks == 0:
-        raise PreventUpdate
-    return current_time_input()
-@app.callback(
-    Output('shutdown-time-input', 'value', allow_duplicate=True),
-    Input('shutdown-now-btn', 'n_clicks'),
-    prevent_initial_call=True
-)
-def shutdown_now(n_clicks):
-    if n_clicks is None or n_clicks == 0:
-        raise PreventUpdate
-    return current_time_input()
+    index = triggered_id['index']
+    value = [current_time() if output['id']['index']==index else no_update for output in ctx.outputs_list[0]]
+    return [value]
+
 
 
 # click the download log button, download the log db as a csv file
@@ -404,57 +398,6 @@ def show_delete_update_btn(selected_rows):
     if selected_rows:
         return False
     return True
-
-# if update user button is clicked, show the update user modal and load the user data
-# @app.callback(
-#     Output('update-user-modal', 'is_open'),
-#     Output('update-username', 'value'),
-#     Output('update-email', 'value'),
-#     Output('update-is-admin', 'value'),
-#     Output('update-password', 'value'),
-#     Output('update-confirm-password', 'value'),
-#     Input('update-user-btn', 'n_clicks'),
-#     State('user-table', 'selectedRows'),
-#     prevent_initial_call=True
-# )
-# def show_update_user_modal(update_clicks, selected_row):
-#     if ctx.triggered_id is None:
-#         raise PreventUpdate
-#     if ctx.triggered_id == 'update-user-btn' and selected_row:
-#         username = selected_row[0]['Username']
-#         user = fetch_user_by_username(username)
-#         return True, user.username, user.email, user.is_admin, '', ''
-#     return False, '', '', False, '', ''
-#
-# # save the updated user data when save button is clicked
-# @app.callback(
-#     Output('user-table', 'rowData', allow_duplicate=True),
-#     Output('update-user-modal', 'is_open', allow_duplicate=True),
-#     Output('update-user-status', 'is_open', allow_duplicate=True),
-#     Output('update-user-status', 'children', allow_duplicate=True),
-#     Output('update-username', 'value', allow_duplicate=True),
-#     Output('update-email', 'value', allow_duplicate=True),
-#     Output('update-password', 'value', allow_duplicate=True),
-#     Output('update-confirm-password', 'value', allow_duplicate=True),
-#     Input('update-user', 'n_clicks'),
-#     State('update-username', 'value'),
-#     State('update-email', 'value'),
-#     State('update-is-admin', 'value'),
-#     State('update-password', 'value'),
-#     State('update-confirm-password', 'value'),
-#     prevent_initial_call=True)
-# def update_user_callback(update_user_click, username, email, is_admin, password, confirm_password):
-#
-#     if not username or not email:
-#         return no_update, True, True, 'Please fill in Username and email', no_update, no_update, no_update, no_update
-#     if password!= confirm_password:
-#         return no_update, True, True, 'Passwords do not match', no_update, no_update, '', ''
-#     is_admin = True if is_admin else False
-#     if password:
-#         update_user(username=username, email=email, is_admin=is_admin,password=password)
-#     else:
-#         update_user(username=username, email=email, is_admin=is_admin)
-#     return fetch_all_users(), False, True, 'User updated successfully', '', '', '', ''
 
 
 # update user-table when delete user
