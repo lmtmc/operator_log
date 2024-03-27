@@ -193,9 +193,10 @@ def update_tab_content(active_tab):
         return shutdown_time
     return no_update
 
-# update the observer name when the tab is opened
+# update the observer name and arrival-time-input when the tab is opened
 @app.callback(Output('observer-name-label', 'children'),
               Output('observers-checklist', 'options'),
+              Output({'type':'dynamic-time-input', 'index':'arrival-time-input'}, 'value'),
               Input('tabs', 'value'),
               )
 def update_observer(active_tab):
@@ -204,7 +205,7 @@ def update_observer(active_tab):
         # exclude the admin and current user from the observer checklist
         registered_users = [{'label': user['Username'], 'value': user['Username']}
                 for user in users if user['Username'] != current_user.id and not user['Is Admin']]
-        return f'Welcome, {current_user.id} !', registered_users
+        return f'Welcome, {current_user.id} !', registered_users, current_time()
     return no_update
 
 # update the log table when the tab is opened
