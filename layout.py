@@ -7,7 +7,7 @@ import dash_ag_grid as dag
 from db import (fetch_log_data, current_time, fetch_all_users, add_user, data_column,
                 update_user_password, fetch_user_by_username, exist_user, exist_email, validate_user,fetch_all_users)
 
-prefix = 'observer_log'
+prefix = 'operator_log'
 
 lost_reason = ['Bad Weather', 'Scheduled observer team not available',
                'Problem with the telescope (e.g. drive system, active surface, M2, M3, etc.)',
@@ -489,23 +489,25 @@ dash_app_page = dbc.Container([
 ])
 
 login_page = html.Div([
-    html.H2('Login', style={'textAlign': 'center'}),
+    html.H2('Login' , style={'textAlign': 'center'} ),
+    html.Div([
     dbc.Label('Username', className='mt-4', style={'fontWeight': '500'}),
     dbc.Input(id='username', placeholder='Enter your username', className='mb-4', style={'borderRadius': '20px'}),
     dbc.Label('Password', style={'fontWeight': '500'}),
     dbc.Input(id='password', placeholder='Enter your password', type='password', className='mb-4', style={'borderRadius': '20px'}),
     dbc.Row([
         dbc.Col(
-            dbc.Button('LOGIN', id='login-btn', n_clicks=0, color='primary', className='mt-2',
-                       style={'width': '100%', 'borderRadius': '20px', 'padding': '10px'}),
-            width=12
+            dbc.Button('LOGIN', id='login-btn', n_clicks=0, color='primary', className='save-button ml-5',
+                       #style={'width': '50%', 'borderRadius': '20px', 'padding': '10px'}
+                       ),
+            width={'offset': 4}
         )
     ]),
     html.Br(),
     html.Div(dbc.Alert(id='login-status', color='dark', is_open=False, dismissable=True,duration=4000,
                        style={'textAlign': 'center'}) ),
-        ],className='login-container mt-5',
-    )
+        ],className='login-container mt-1',
+    )])
 
 
 register_page = html.Div([
