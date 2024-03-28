@@ -358,7 +358,7 @@ ObsNum_form = dbc.Card(
 )
 
 columnDefs = [
-    {"field": data_column[0]},
+    {"field": data_column[0], "width":100},
     {"field": data_column[1]},
     {
         "headerName": "Observers",
@@ -447,6 +447,9 @@ log_history = html.Div(
                             columnDefs=columnDefs,
                             defaultColDef={'filter': True, 'resizable': True},
                             columnSize='sizeToFit',
+                            dashGridOptions={
+                                "skipHeaderOnAutoSize": True,
+                            },
 
                         ), className='mt-3 ml-5  ', id='log-table-div', style={'display': 'none'}),
 
