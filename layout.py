@@ -18,6 +18,12 @@ instruments = ['TolTEC', 'RSR', 'SEQUOIA', '1mm']
 
 red_star_style = {"color": "red", 'marginRight': '5px'}
 
+checklist_style = {
+    "display": "flex",  # Flexbox display
+    "flex-wrap": "wrap",  # Allows multiple lines if needed
+    # "justify-content": "space-evenly",  # Distributes space evenly
+}
+
 keyworks = ['Engineering', 'Telescope', 'M1', 'M2', 'M3', 'Actuators', 'TempSens', 'TolTEC', 'RSR', 'SEQUOIA', '1mm',
             'Pointing', 'Focus', 'Astigmatism', 'Error']
 
@@ -29,8 +35,10 @@ navbar = html.Div(dbc.NavbarSimple(
         dbc.DropdownMenu(
             children=[
                 dbc.DropdownMenuItem("Settings", id='setting-btn', href=f"/{prefix}/settings"),
-                dbc.DropdownMenuItem("Logout", id='logout-btn', href=f"/{prefix}/logout"),],
+                dbc.DropdownMenuItem("Logout", id='logout-btn', href=f"/{prefix}/logout"),
+            ],
             nav=True, in_navbar=True, right=True, id='user-dropdown'),
+        dbc.NavItem(dbc.NavLink('Help', href=f'/{prefix}/help', target='_blank')),
         ],
     brand="LMT Observer Log",
     brand_href="#",
@@ -41,7 +49,10 @@ navbar = html.Div(dbc.NavbarSimple(
 )
 
 cardheader_style = {'textAlign': 'center'}
-cardbody_style = {'height': '410px', 'overflowY': 'auto'}
+cardbody_style = {
+     'min-height': '410px',
+    #               'overflowY': 'auto'
+                  }
 cardfooter_style = {'textAlign': 'right'}
 # arrival page 1. observers name component
 observers = html.Div(
@@ -51,11 +62,13 @@ observers = html.Div(
                 dbc.Col([
                     dbc.Row(
                         [
-                            dbc.Col(dbc.Checklist(id='observers-checklist',inline=True,), width='auto'),
-                            dbc.Col(dbc.Input(id='observer-name-input', type='text', placeholder='Enter additional observer',
-                                    ), width='auto')
+                            dbc.Col(dbc.Checklist(id='observers-checklist',inline=True, style=checklist_style,
+                                                  ),width='auto'),
+
                         ], align='center'
                     ),
+                dbc.Row(dbc.Input(id='observer-name-input', type='text', placeholder='Enter additional observers',
+                                    ), )
                 ]),
             ], className='mt-3'),
 ])
@@ -121,7 +134,7 @@ main_plan = html.Div(
 )
 # arrival page
 observer_arrive = dbc.Card([
-        dbc.CardHeader(html.H5(id='observer-name-label', style=cardheader_style)),
+        dbc.CardHeader(html.H5('Arrival',id='observer-name-label', style=cardheader_style)),
         dbc.CardBody(
             [
                 observers,
@@ -285,6 +298,27 @@ problem_reasons = html.Div(
         ),
     ],  )
 )
+problem_image = html.Div(
+    dbc.Row([
+        dbc.Col(dbc.Label('Upload Image'), width=2),
+        dbc.Col(dcc.Upload(
+            id="upload-image",
+            children=html.Div(["Drag and Drop or ", html.A("Select Files")]),
+            style={
+                "width": "50%",
+                "height": "30px",
+                "lineHeight": "30px",
+                "borderWidth": "1px",
+                "borderStyle": "dashed",
+                "borderRadius": "5px",
+                "textAlign": "center",
+                "margin": "10px",
+            },
+            multiple=True,
+        ),),
+        html.Div(id="output-image-upload"),
+    ],  )
+)
 
 problem_form = dbc.Card(
     [
@@ -292,7 +326,8 @@ problem_form = dbc.Card(
         dbc.CardBody(
             [
                 dbc.Row(problem_log_time_input, className='mb-3'),
-                problem_reasons,
+                dbc.Row(problem_reasons, className='mb-3'),
+                problem_image,
             ],style=cardbody_style
         ),
         dbc.CardFooter(html.Div(html.Button('SAVE', id='problem-btn', n_clicks=0, className='save-button'),style=cardfooter_style,))
@@ -410,34 +445,38 @@ columnDefs = [
             {"field": data_column[31], "columnGroupShow": "open"},
             {"field": data_column[32], "columnGroupShow": "open"},
             {"field": data_column[33], "columnGroupShow": "open"},
+            {"field": data_column[34],
+             "cellRenderer":"ImageProblem",
+            "columnGroupShow": "open"},
         ],
     },
     {
         "headerName": "Resume Details",
         "children": [
-            {"field": data_column[34]},
-            {"field": data_column[35], "columnGroupShow": "open"},
+            {"field": data_column[35]},
+            {"field": data_column[36], "columnGroupShow": "open"},
         ],
     },
     {
         "headerName": "User Notes",
         "children": [
-            {"field": data_column[36]},
-            {"field": data_column[37], "columnGroupShow": "open"},
+            {"field": data_column[37]},
             {"field": data_column[38], "columnGroupShow": "open"},
+            {"field": data_column[39], "columnGroupShow": "open"},
         ],
     },
     {
         "headerName": "Shutdown",
         "children": [
-            {"field": data_column[39]},
+            {"field": data_column[40]},
         ],
     }
 ]
 log_history = html.Div(
             [
+                html.Hr(),
                 dbc.Row([
-                    dbc.Col(dbc.Button("View Log History ", id="view-btn",className='download-button'),width='auto'),
+                    dbc.Col(dbc.Button("View/Hide Log History ", id="view-btn",className='download-button'),width='auto'),
                     dbc.Col(html.Button('Download Log', id='download-button', n_clicks=0, className='download-button'),width='auto'),
                 ],  className='mt-3'),
 
@@ -452,6 +491,8 @@ log_history = html.Div(
                             },
 
                         ), className='mt-3 ml-5  ', id='log-table-div', style={'display': 'none'}),
+
+                dbc.Modal(id='custom-component-img-modal', is_open=False, size='xl',),
 
 
             ], className='mt-5 mb-5'
@@ -487,6 +528,8 @@ tab_select = html.Div(dbc.Row([
 
 dash_app_page = dbc.Container([
     tab_select,
+    dbc.Alert(id='confirm-save', is_open=False, duration=4000, dismissable=True,color='success',
+              style={'textAlign': 'center', 'width': '50%', 'margin': 'auto'}),
     html.Div(log_history),
     dcc.Download(id='download-log')
 ])
@@ -494,8 +537,8 @@ dash_app_page = dbc.Container([
 login_page = html.Div([
     html.H2('Login' , style={'textAlign': 'center'} ),
     html.Div([
-    dbc.Label('Username', className='mt-4', style={'fontWeight': '500'}),
-    dbc.Input(id='username', placeholder='Enter your username', className='mb-4', style={'borderRadius': '20px'}),
+    dbc.Label('Email', className='mt-4', style={'fontWeight': '500'}),
+    dbc.Input(id='email', placeholder='Email', className='mb-4', style={'borderRadius': '20px'}),
     dbc.Label('Password', style={'fontWeight': '500'}),
     dbc.Input(id='password', placeholder='Enter your password', type='password', className='mb-4', style={'borderRadius': '20px'}),
     dbc.Row([
@@ -678,3 +721,34 @@ admin_page = dbc.Container(
         html.Div(admin_update_user),
         html.Div(dbc.Alert(id='admin-status', color='dark', is_open=False, dismissable=True,), style={'textAlign': 'center'}),
         ])
+
+help_content = """
+# Arrival
+1. **Select Observers**: Select the observers from the list or enter the name of the observer.
+2. **Arrival Time**: Enter the arrival time manually or push 'Now' to use the current time.
+3. **Weather Condition**: Enter the weather condition manually or push 'Now' to use the current time.
+4. **Main Plan**: Enter the main plan for the night.
+
+# Instruments
+1. **System Start Time**: Enter the system start time manually or push 'Now' to use the current time.
+2. **Initial Setup**: Check the instrument status and enter the time and note.
+3. **Notes**: Enter any notes for the instrument.
+
+# Pause or Cancellation
+1. **Log Time**: Enter the log time manually or push 'Now' to use the current time.
+2. **Enter Reasons**: Enter the reasons for the pause or cancellation.
+3. **Upload Image**: Upload an image if needed.
+
+# Resume
+1. **Resume Time**: Enter the resume time manually or push 'Now' to use the current time.
+2. **Comment**: Enter any comment for the resume.
+
+# User Note
+1. **ObsNum**: Enter the ObsNum for the note.
+2. **Keyword**: Enter the keyword for the note.
+3. **Entry**: Enter the entry for the note.
+
+# Shutdown
+1. **Shutdown Time**: Enter the shutdown time manually or push 'Now' to use the current time.
+
+"""

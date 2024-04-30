@@ -1,11 +1,12 @@
 # db.py
-from sqlalchemy import create_engine, Column, Integer, String, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, LargeBinary
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 import datetime
+import os
 from werkzeug.security import generate_password_hash, check_password_hash
-
+import PIL.Image as Image
 # Engine is the starting point for any SQLAlchemy application.
 # It’s “home base” for the actual database and its DBAPI, delivered to the SQLAlchemy application
 # through a connection pool and a Dialect, which describes how to talk to a specific kind of database/DBAPI combination.
@@ -45,7 +46,7 @@ database_column = ['id', 'timestamp', 'observer_account', 'other_observers', 'ot
                       'sky', 'tau', 't', 'rh', 'wind', 'weather_other', 'main_plan', 'start_time', 'notes','toltec', 'toltec_time', 'toltec_note',
                      'rsr', 'rsr_time', 'rsr_note', 'sequoia', 'sequoia_time', 'sequoia_note', 'one_mm', 'one_mm_time',
                      'one_mm_note', 'pause_time', 'weather', 'icing', 'power', 'observers_not_available', 'other_reason',
-                     'resume_time', 'comment', 'obsNum', 'keywords', 'entry', 'shutdown_time']
+                     'image', 'resume_time', 'comment', 'obsNum', 'keywords', 'entry', 'shutdown_time']
 
 data_column = ["ID", "Timestamp", "Observer Account", "Other Observers", "Other", "Arrival Time",
                "Weather Record Time", "Sky", "Tau", "T", "RH", "Wind", "Other Weather",
@@ -55,10 +56,10 @@ data_column = ["ID", "Timestamp", "Observer Account", "Other Observers", "Other"
                "RSR", "RSR Status Time", "RSR Note",
                "SEQUOIA", "SEQUOIA Status Time", "SEQUOIA Note",
                "1mm", "1mm Status Time", "1mm Note",
-               "Pause Time", "Weather", "Icing", "Power", "Observers Not Available", "Others",
+               "Pause Time", "Weather", "Icing", "Power", "Observers Not Available", "Others","Image",
                "Resume Time", "Comment",
                "ObsNum", "Keyword", "Entry",
-               "Shutdown Time"] # 39 columns
+               "Shutdown Time"] # 41 columns
 
 column_mapping = dict(zip(database_column, data_column))
 class Log(LogBase):
@@ -97,6 +98,7 @@ class Log(LogBase):
     power = Column(String, default='')
     observers_not_available = Column(String, default='')
     other_reason = Column(String, default='')
+    image = Column(String, default='')
     resume_time = Column(String, default='')
     comment = Column(String, default='')
     obsNum = Column(String, default='')
@@ -112,13 +114,15 @@ class User(UserBase):
     password_hash = Column(String, nullable=False)
     is_admin = Column(Boolean, default=False) # Admin flag
     create_at = Column(String, default=current_time)
+    is_default_password = Column(Boolean, default=True)
 
-    def __init__(self, username, email, password, is_admin, create_at=current_time()):
+    def __init__(self, username, email, password, is_admin, create_at=current_time(), is_default_password=True):
         self.username = username
         self.email = email
         self.password_hash = self.hash_password(password)
         self.is_admin = is_admin
         self.create_at = create_at
+        self.is_default_password = is_default_password
 
     def __repr__(self):
         return f'<User {self.username} {self.email} >'
@@ -140,6 +144,10 @@ def init_db():
         print("Error occurred:", e)
 
 def add_user(**kwargs):
+    if exist_email(kwargs['email']):
+        print("Email already exists")
+        return False
+
     with UserSession() as session:
         new_user = User(**kwargs)
         session.add(new_user)
@@ -171,6 +179,7 @@ def update_user_password(username, password):
         user = session.query(User).filter_by(username=username).first()
         if user:
             user.password_hash = User.hash_password(password)
+            user.is_default_password = False
             try:
                 session.commit()
                 return True
@@ -186,10 +195,16 @@ def fetch_user_by_username(username):
             return user
         else:
             return None
-
-def exist_user(email):
+def fetch_user_by_email(email):
     with UserSession() as session:
         user = session.query(User).filter_by(email=email).first()
+        if user:
+            return user
+        else:
+            return None
+def exist_user(username):
+    with UserSession() as session:
+        user = session.query(User).filter_by(username=username).first()
         if user:
             return True
         else:
@@ -202,13 +217,14 @@ def exist_email(email):
             return True
         else:
             return False
-def validate_user(username, password):
+def validate_user(email, password):
     with UserSession() as session:
-        user = session.query(User).filter_by(username=username).first()
-        if user and user.verify_password(password):
-            return True
-        else:
+        user = session.query(User).filter_by(email=email).first()
+        if not user:
+            print("User not found")
             return False
+        return user.verify_password(password)
+
 
 def delete_user(username):
     with UserSession() as session:
@@ -225,6 +241,10 @@ def delete_user(username):
 def update_user(username, email, is_admin, password=None):
     with UserSession() as session:
         user = session.query(User).filter_by(username=username).first()
+        if email != user.email and exist_email(email):
+            print("Email already exists")
+            return False
+
         if user:
             user.email = email
             user.is_admin = is_admin
@@ -258,13 +278,18 @@ def fetch_log_data(n):
             query_result = session.query(Log).all()
         else:
             query_result = session.query(Log).order_by(Log.timestamp.desc()).limit(n).all()
-        log_data = [{column_mapping[key]: value for key, value in log.__dict__.items() if key in column_mapping}
-                    for log in query_result]
+        log_data = []
+        for log in query_result:
+            log_entry = {column_mapping[key]: value for key, value in log.__dict__.items() if key in column_mapping}
+            if 'Image' in log_entry and log_entry['Image'] is not None:
+                if os.path.exists(log_entry['Image']):
+                    log_entry['Image'] = Image.open(log_entry['Image'])
+            log_data.append(log_entry)
         return log_data
 
 def create_admin_user():
-    if not fetch_user_by_username('admin'):
-        add_user(username='admin',email='xhuang@umass.edu',password='admin',is_admin=True)
+    if not fetch_user_by_email('xiahuang@umass.edu'):
+        add_user(username='admin',email='xiahuang@umass.edu',password='admin',is_admin=True)
     else:
         print("Admin user already exists")
 
