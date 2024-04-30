@@ -540,4 +540,4 @@ def add_user_to_db(add_user_click, save_user_click,username, email, is_admin,pas
 if __name__ == '__main__':
     init_db()
     create_admin_user()
-    app.run_server(debug=True, dev_tools_props_check=False, threaded=False)
+    app.run_server(debug=False, dev_tools_props_check=False, threaded=False)
