@@ -571,4 +571,4 @@ def add_user_to_db(add_user_click, save_user_click,username, email, is_admin,pas
     return no_update, no_update, no_update, '', '', '', '', ''
 
 if __name__ == '__main__':
-    app.run_server(debug=True, dev_tools_props_check=False, threaded=False)
+    app.run_server(debug=False, dev_tools_props_check=False, threaded=False)
