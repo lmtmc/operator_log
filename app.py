@@ -18,9 +18,15 @@ from flask import redirect, url_for, render_template_string, request
 import os
 from flask_login import (
     login_user, LoginManager, UserMixin, login_required, logout_user, current_user, AnonymousUserMixin)
+from flask_session import Session
 
 server = flask.Flask(__name__)
 server.secret_key = os.getenv("SECRET_KEY", os.urandom(24))
+server.config['SESSION_TYPE'] = 'filesystem'
+server.config['SESSION_COOKIE_SECURE'] = True
+server.config['SESSION_COOKIE_PATH'] = f'/{prefix}/'
+Session(server)
+
 # Initialize the database if it fails to initialize then run python3 db.py first
 init_db()
 create_admin_user()
@@ -60,15 +66,27 @@ class User(UserMixin):
         self.is_default_password = is_default_password
 
 @login_manager.user_loader
-def load_user(email):
-    user = fetch_user_by_username(email)
+def load_user(username):
+    user = fetch_user_by_username(username)
     if user:
         return User(
             username=user.username,
             email=user.email,
             is_admin=user.is_admin,
-            is_default_password=user.is_default_password)
+            is_default_password=user.is_default_password
+        )
     return None
+
+# @login_manager.user_loader
+# def load_user(username):
+#     user = fetch_user_by_username(username)
+#     if user:
+#         return User(
+#             username=user.username,
+#             email=user.email,
+#             is_admin=user.is_admin,
+#             is_default_password=user.is_default_password)
+#     return None
 
 # Layout of the app
 
@@ -100,6 +118,9 @@ def display_page(pathname):
     if pathname.endswith(f'/{prefix}/help'):
         return dcc.Markdown(help_content)
 
+    if pathname.endswith(f'/{prefix}/debug'):
+        return html.Div([str(current_user.is_authenticated)])
+
     if current_user.is_authenticated:
         return dash_app_page
 
@@ -117,29 +138,36 @@ def display_page(pathname):
                State('password', 'value')],
               prevent_initial_call=True)
 def login(n_clicks, email, password):
-    if not n_clicks or not email or not password:
+    if not n_clicks:
         return no_update
+
+    if not email or not password:
+        return no_update, True, 'Please fill in all the fields', email, password
+
+    if not exist_email(email):
+        return no_update, True, 'Email does not exist', email, password
 
     if validate_user(email, password):
         data = fetch_user_by_email(email)
-        user = User(
-            username=data.username,
-            email=data.email,
-            is_admin=data.is_admin,
-            is_default_password=
-            data.is_default_password
-        )
-        login_user(user)
-        if user.is_admin:
-            return f'/{prefix}/admin', True, 'Admin Login','',''
-        if user.is_default_password:
-            return f'/{prefix}/settings', True, 'Login with default password','',''
+        if data:
+            user = User(
+                username=data.username,
+                email=data.email,
+                is_admin=data.is_admin,
+                is_default_password=data.is_default_password
+            )
+            login_user(user)
+            if user.is_admin:
+                return f'/{prefix}/admin', True, 'Admin Login','',''
+            if user.is_default_password:
+                return f'/{prefix}/settings', True, 'Login with default password','',''
 
-        return f'/{prefix}/', True, 'Normal User Login','',''
-
+            return f'/{prefix}/', True, 'Normal User Login','',''
+        else:
+            return no_update, True, 'Invalid credentials','',''
     return no_update, True, 'Invalid credentials','',''
 
-# if login is successful, display username in navbar
+
 @app.callback(Output('user-dropdown', 'label'),
                 Input('url', 'pathname'),
                 prevent_initial_call=True)
@@ -198,25 +226,6 @@ def back(n_clicks):
         raise PreventUpdate
     return f'/{prefix}/'
 
-
-# if authenticated, show navbar, if not, hide it
-# @app.callback(Output('navbar', 'style'),
-#               Input('url', 'pathname'),
-#               prevent_initial_call=True)
-# def toggle_navbar(pathname):
-#     if current_user.is_authenticated:
-#         return {}
-#     return {'display': 'none'}
-
-# @app.callback(
-#     Output('confirm-save', 'displayed'),
-#     Input('tabs', 'value'),
-#     State('confirm-save', 'displayed'),
-# )
-# def confirm_save(tab, displayed):
-#     if displayed is False:
-#         return True
-#     return False
 
 # update tab content when the tab is opened
 @app.callback(Output('tab-content', 'children'),
@@ -562,4 +571,4 @@ def add_user_to_db(add_user_click, save_user_click,username, email, is_admin,pas
     return no_update, no_update, no_update, '', '', '', '', ''
 
 if __name__ == '__main__':
-    app.run_server(debug=False, dev_tools_props_check=False, threaded=False)
+    app.run_server(debug=True, dev_tools_props_check=False, threaded=False)
