@@ -1,5 +1,3 @@
-# todo add image upload
-# todo comfirmation when change active tab
 import dash
 import dash_auth
 from dash import html, dcc, Input, Output, State, no_update, ctx, Patch, ALL, no_update, dash_table
@@ -18,9 +16,11 @@ from db import (exist_user, exist_email,delete_user,validate_user, add_user, upd
 import flask
 from flask import redirect, url_for, render_template_string, request
 import os
-from flask_login import login_user, LoginManager, UserMixin, login_required, logout_user, current_user, AnonymousUserMixin
+from flask_login import (
+    login_user, LoginManager, UserMixin, login_required, logout_user, current_user, AnonymousUserMixin)
+
 server = flask.Flask(__name__)
-server.secret_key = os.urandom(24)
+server.secret_key = os.getenv("SECRET_KEY", os.urandom(24))
 # Initialize the database if it fails to initialize then run python3 db.py first
 init_db()
 create_admin_user()
@@ -28,23 +28,27 @@ create_admin_user()
 dash_prefix = f'/{prefix}/'
 
 # Initialize the Dash app
-app = dash.Dash(__name__, requests_pathname_prefix = dash_prefix, routes_pathname_prefix=dash_prefix,
-                server = server, title='LMT Observer Log',
+app = dash.Dash(__name__,
+                requests_pathname_prefix = dash_prefix,
+                routes_pathname_prefix=dash_prefix,
+                server = server,
+                title='LMT Observer Log',
                 external_stylesheets=[dbc.themes.BOOTSTRAP, "https://use.fontawesome.com/releases/v5.8.1/css/all.css"],
-                prevent_initial_callbacks="initial_duplicate", suppress_callback_exceptions=True)
+                prevent_initial_callbacks="initial_duplicate",
+                suppress_callback_exceptions=True)
 
 # Login manager object will be used to log in/logout users
 login_manager = LoginManager()
 login_manager.init_app(server)
 login_prefix = f'{prefix}/' # remove the leading character from the prefix
-
+login_manager.login_view = f'{login_prefix}login'
 
 # User class for flask-login
 class Anonymous(AnonymousUserMixin):
     def __init__(self, is_admin=False):
         self.is_admin = is_admin
 login_manager.anonymous_user = Anonymous
-login_manager.login_view = f'{login_prefix}login'
+
 
 # User class for flask-login
 class User(UserMixin):
@@ -59,7 +63,11 @@ class User(UserMixin):
 def load_user(email):
     user = fetch_user_by_username(email)
     if user:
-        return User(username=user.username, email=user.email, is_admin=user.is_admin, is_default_password=user.is_default_password)
+        return User(
+            username=user.username,
+            email=user.email,
+            is_admin=user.is_admin,
+            is_default_password=user.is_default_password)
     return None
 
 # Layout of the app
@@ -68,31 +76,33 @@ app.layout = html.Div([
     dcc.Location(id='url', refresh=True),
     html.Div(navbar, className='mb-5'),
     html.Div(id='page-content'),
-
 ],)
-
 
 @app.callback(Output('page-content', 'children'),
               Input('url', 'pathname'),
               prevent_initial_call=True)
 def display_page(pathname):
+    if not pathname:
+        raise PreventUpdate
+
     if pathname.endswith(f'{prefix}/admin'):
         if current_user.is_authenticated and current_user.is_admin:
             return admin_page
-        else:
-            return "action denied"
+        return "action denied"
+
     if pathname.endswith(f'/{prefix}/logout'):
         logout_user()
         return login_page
-    elif pathname.endswith(f'/{prefix}/settings'):
-        if current_user.is_authenticated:
-            return setting_page
-        else:
-            return login_page
-    elif pathname.endswith(f'/{prefix}/help'):
+
+    if pathname.endswith(f'/{prefix}/settings'):
+        return setting_page if current_user.is_authenticated else login_page
+
+    if pathname.endswith(f'/{prefix}/help'):
         return dcc.Markdown(help_content)
-    elif current_user.is_authenticated:
+
+    if current_user.is_authenticated:
         return dash_app_page
+
     return login_page
 
 
@@ -103,25 +113,32 @@ def display_page(pathname):
               Output('email', 'value'),
               Output('password', 'value'),
               [Input('login-btn', 'n_clicks')],
-              [State('email', 'value'), State('password', 'value')],
+              [State('email', 'value'),
+               State('password', 'value')],
               prevent_initial_call=True)
 def login(n_clicks, email, password):
-    if email is None or password is None:
+    if not n_clicks or not email or not password:
         return no_update
 
     if validate_user(email, password):
         data = fetch_user_by_email(email)
-        user = User(username=data.username,email=data.email, is_admin=data.is_admin, is_default_password=data.is_default_password)
+        user = User(
+            username=data.username,
+            email=data.email,
+            is_admin=data.is_admin,
+            is_default_password=
+            data.is_default_password
+        )
         login_user(user)
         if user.is_admin:
             return f'/{prefix}/admin', True, 'Admin Login','',''
-        elif user.is_default_password:
-            return f'/{prefix}/settings', True, 'Normal User Login','',''
-        else:
-            return f'/{prefix}/', True, 'Normal User Login','',''
-    else:
-        return no_update, True, 'Invalid credentials','',''
-    return no_update  # Stay on the login page if incorrect credentials
+        if user.is_default_password:
+            return f'/{prefix}/settings', True, 'Login with default password','',''
+
+        return f'/{prefix}/', True, 'Normal User Login','',''
+
+    return no_update, True, 'Invalid credentials','',''
+
 # if login is successful, display username in navbar
 @app.callback(Output('user-dropdown', 'label'),
                 Input('url', 'pathname'),
@@ -140,22 +157,26 @@ def display_username(pathname):
                 State('reset-confirm-password', 'value'),
                 prevent_initial_call=True)
 def reset_password(n_clicks, password, confirm_password):
-    if n_clicks is None or n_clicks == 0:
+    if not n_clicks:
         raise PreventUpdate
+
     if not password or not confirm_password:
         return no_update, True, 'Please fill in all the fields'
+
     if password != confirm_password:
         return no_update, True, 'Passwords do not match'
-    if password and confirm_password:
-        update_user_password(username = current_user.id, password=password)
-        return f'/{prefix}/', True, 'Password reset successfully'
-    return f'/{prefix}/reset', True, 'Error occurred'
+
+    update_user_password(username = current_user.id, password=password)
+    return f'/{prefix}/', True, 'Password reset successfully'
+
 
 # callback for the logout button
 @app.callback(Output('url', 'pathname', allow_duplicate=True),
                 [Input('logout-btn', 'n_clicks')],
                 prevent_initial_call=True)
 def logout(n_clicks):
+    if not n_clicks:
+        raise PreventUpdate
     logout_user()
     return f'/{prefix}/'
 
@@ -164,24 +185,28 @@ def logout(n_clicks):
                 [Input('settings-btn', 'n_clicks')],
                 prevent_initial_call=True)
 def settings(n_clicks):
-    return f'/{prefix}/settings' if n_clicks > 0 else no_update
+    if not n_clicks:
+        raise PreventUpdate
+    return f'/{prefix}/settings'
 
 # callback for back button
 @app.callback(Output('url', 'pathname', allow_duplicate=True),
                 [Input('back-btn', 'n_clicks')],
                 prevent_initial_call=True)
 def back(n_clicks):
-    return f'/{prefix}/' if n_clicks > 0 else no_update
+    if not n_clicks:
+        raise PreventUpdate
+    return f'/{prefix}/'
 
 
 # if authenticated, show navbar, if not, hide it
-@app.callback(Output('navbar', 'style'),
-              Input('url', 'pathname'),
-              prevent_initial_call=True)
-def show_navbar(pathname):
-    if current_user.is_authenticated:
-        return {}
-    return {'display': 'none'}
+# @app.callback(Output('navbar', 'style'),
+#               Input('url', 'pathname'),
+#               prevent_initial_call=True)
+# def toggle_navbar(pathname):
+#     if current_user.is_authenticated:
+#         return {}
+#     return {'display': 'none'}
 
 # @app.callback(
 #     Output('confirm-save', 'displayed'),
@@ -332,11 +357,10 @@ def save_instrument(n_clicks, start_time, observer_notes, *instrument_statuses):
 def save_problem(n_clicks, contents,pause_time, weather, icing, power, observers, other, filename):
     trigged_id = ctx.triggered_id
     if trigged_id == 'problem-btn':
+        children = []
         if n_clicks is None or n_clicks == 0:
             raise PreventUpdate
-        image_path = None
         if contents:
-            children = []
             image_data = []
             for content, name in zip(contents, filename):
                 content_type, content_string = content.split(',')
@@ -538,6 +562,4 @@ def add_user_to_db(add_user_click, save_user_click,username, email, is_admin,pas
     return no_update, no_update, no_update, '', '', '', '', ''
 
 if __name__ == '__main__':
-    init_db()
-    create_admin_user()
     app.run_server(debug=False, dev_tools_props_check=False, threaded=False)
