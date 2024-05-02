@@ -19,6 +19,12 @@ import os
 from flask_login import (
     login_user, LoginManager, UserMixin, login_required, logout_user, current_user, AnonymousUserMixin)
 from flask_session import Session
+import logging
+logger = logging.getLogger(__name__)
+FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
+logging.basicConfig(filename=os.getenv("DASHA_LOGFILE", '/home/lmtmc/logs/operator_log1.log'), level=logging.INFO, format=FORMAT)
+
+logger.info('hello from operator log')
 
 server = flask.Flask(__name__)
 server.secret_key = os.getenv("SECRET_KEY", os.urandom(24))
@@ -81,12 +87,16 @@ app.layout = html.Div([
               Input('url', 'pathname'),
               prevent_initial_call=True)
 def display_page(pathname):
+    logger.info(f'user: {current_user}')
+    logger.info(f'is_authenticated: {current_user.is_authenticated}')
     if not pathname:
         raise PreventUpdate
 
     if pathname.endswith(f'{prefix}/admin'):
-        if current_user.is_authenticated and current_user.is_admin:
-            return admin_page
+        if current_user.is_authenticated:
+            logger.info(f'is_admin: {current_user.is_admin}')
+            if current_user.is_admin:
+                return admin_page
         return "You are not authorized to view this page. Please login as an admin."
 
     elif pathname.endswith(f'/{prefix}/logout'):
@@ -137,8 +147,9 @@ def login(n_clicks, email, password):
                 is_admin=data.is_admin,
                 is_default_password=data.is_default_password
             )
-            login_user(user)
-            print('is_authenticated:',current_user.is_authenticated)
+            login_user(user, remember=True)
+            logger.info(f'is_authenticated: {current_user.is_authenticated}')
+            logger.info(f'is_admin: {current_user.is_admin}')
             if user.is_admin:
                 return f'/{prefix}/admin', True, 'Admin Login','',''
             if user.is_default_password:
@@ -554,4 +565,4 @@ def add_user_to_db(add_user_click, save_user_click,username, email, is_admin,pas
 
 if __name__ == '__main__':
     # app.run_server(debug=True, dev_tools_props_check=False, threaded=False)
-    app.run_server(debug=True,)
+    app.run_server(debug=False)
