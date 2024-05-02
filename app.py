@@ -50,13 +50,6 @@ login_prefix = f'{prefix}/' # remove the leading character from the prefix
 login_manager.login_view = f'{login_prefix}login'
 
 # User class for flask-login
-class Anonymous(AnonymousUserMixin):
-    def __init__(self, is_admin=False):
-        self.is_admin = is_admin
-login_manager.anonymous_user = Anonymous
-
-
-# User class for flask-login
 class User(UserMixin):
     def __init__(self, username, email, is_admin,is_default_password):
         self.id = username
@@ -73,22 +66,10 @@ def load_user(username):
             username=user.username,
             email=user.email,
             is_admin=user.is_admin,
-            is_default_password=user.is_default_password
+            is_default_password=user.is_default_password,
         )
     return None
 
-# @login_manager.user_loader
-# def load_user(username):
-#     user = fetch_user_by_username(username)
-#     if user:
-#         return User(
-#             username=user.username,
-#             email=user.email,
-#             is_admin=user.is_admin,
-#             is_default_password=user.is_default_password)
-#     return None
-
-# Layout of the app
 
 app.layout = html.Div([
     dcc.Location(id='url', refresh=True),
@@ -106,22 +87,22 @@ def display_page(pathname):
     if pathname.endswith(f'{prefix}/admin'):
         if current_user.is_authenticated and current_user.is_admin:
             return admin_page
-        return "action denied"
+        return "You are not authorized to view this page. Please login as an admin."
 
-    if pathname.endswith(f'/{prefix}/logout'):
+    elif pathname.endswith(f'/{prefix}/logout'):
         logout_user()
         return login_page
 
-    if pathname.endswith(f'/{prefix}/settings'):
+    elif pathname.endswith(f'/{prefix}/settings'):
         return setting_page if current_user.is_authenticated else login_page
 
-    if pathname.endswith(f'/{prefix}/help'):
+    elif pathname.endswith(f'/{prefix}/help'):
         return dcc.Markdown(help_content)
 
-    if pathname.endswith(f'/{prefix}/debug'):
+    elif pathname.endswith(f'/{prefix}/debug'):
         return html.Div([str(current_user.is_authenticated)])
 
-    if current_user.is_authenticated:
+    elif pathname.endswith(f'{prefix}/') and current_user.is_authenticated and not current_user.is_admin:
         return dash_app_page
 
     return login_page
@@ -157,6 +138,7 @@ def login(n_clicks, email, password):
                 is_default_password=data.is_default_password
             )
             login_user(user)
+            print('is_authenticated:',current_user.is_authenticated)
             if user.is_admin:
                 return f'/{prefix}/admin', True, 'Admin Login','',''
             if user.is_default_password:
@@ -571,4 +553,5 @@ def add_user_to_db(add_user_click, save_user_click,username, email, is_admin,pas
     return no_update, no_update, no_update, '', '', '', '', ''
 
 if __name__ == '__main__':
-    app.run_server(debug=False, dev_tools_props_check=False, threaded=False)
+    # app.run_server(debug=True, dev_tools_props_check=False, threaded=False)
+    app.run_server(debug=True,)

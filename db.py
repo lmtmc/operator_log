@@ -292,6 +292,6 @@ def create_admin_user():
         add_user(username='admin',email='xiahuang@umass.edu',password='admin',is_admin=True)
     else:
         print("Admin user already exists")
-
-init_db()
-create_admin_user()
+#
+# init_db()
+# create_admin_user()

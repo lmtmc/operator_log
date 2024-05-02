@@ -637,7 +637,7 @@ user_details = dbc.Card(
                                              "undoRedoCellEditing": True,
                                              "undoRedoCellEditingLimit": 20,
                                              },
-                            columnSize='autoFill',
+                            columnSize='sizeToFit',
                         ), className='mt-3 ml-5  '),
                     ]
                 ),
