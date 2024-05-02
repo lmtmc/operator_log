@@ -62,13 +62,14 @@ observers = html.Div(
                 dbc.Col([
                     dbc.Row(
                         [
-                            dbc.Col(dbc.Checklist(id='observers-checklist',inline=True, style=checklist_style,
-                                                  ),width='auto'),
+                            # dbc.Col(dbc.Checklist(id='observers-checklist',inline=True, style=checklist_style,
+                            #                       ),width='auto'),
+                            dbc.Col(dcc.Dropdown(id='observers-checklist', multi=True)),
+                            dbc.Col(dbc.Input(id='observer-name-input', type='text', placeholder='Enter additional observers',),
+                                width=6)
 
-                        ], align='center'
+                        ], align='center', className='mb-1'
                     ),
-                dbc.Row(dbc.Input(id='observer-name-input', type='text', placeholder='Enter additional observers',
-                                    ), )
                 ]),
             ], className='mt-3'),
 ])
@@ -712,9 +713,9 @@ admin_update_user = dbc.Modal(
 
 admin_page = dbc.Container(
     [
-        html.Div([
-            dbc.Button('Manage Users', id='manage-users-btn', n_clicks=0, className='mb-3', color='secondary',)]
-                 ),
+        dbc.Row([
+            dbc.Col(dbc.Button('Manage Users', id='manage-users-btn', n_clicks=0, color='secondary',)),
+        ], align='center', justify='center', className='mt-3'),
 
         html.Div(user_details, style={'display': 'none'}, id='user-details'),
         html.Div(admin_add_user),
