@@ -109,9 +109,7 @@ def display_page(pathname):
     elif pathname.endswith(f'/{prefix}/help'):
         return dcc.Markdown(help_content)
 
-    elif pathname.endswith(f'/{prefix}/debug'):
-        return html.Div([str(current_user.is_authenticated)])
-
+    # elif pathname.endswith(f'{prefix}/') and current_user.is_authenticated and not current_user.is_admin:
     elif pathname.endswith(f'{prefix}/') and current_user.is_authenticated and not current_user.is_admin:
         return dash_app_page
 
@@ -524,7 +522,6 @@ def update_user_table(manage_clicks):
         return fetch_all_users(), {'display': 'block'}
     return no_update, {'display': 'none'}
 
-
 # add user in the database when save button is clicked
 @app.callback(
     Output('user-table', 'rowData', allow_duplicate=True),
@@ -564,5 +561,4 @@ def add_user_to_db(add_user_click, save_user_click,username, email, is_admin,pas
     return no_update, no_update, no_update, '', '', '', '', ''
 
 if __name__ == '__main__':
-    # app.run_server(debug=True, dev_tools_props_check=False, threaded=False)
     app.run_server(debug=False)
